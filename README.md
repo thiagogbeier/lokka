@@ -55,7 +55,7 @@ Follow this guide to get started with Lokka.
 
 Now you can use the Lokka agent tool with any compatible MCP client. See [MCP clients](https://modelcontextprotocol.io/clients) for a list of compatible clients.
 
-In the example below, we'll use the Claude Desktop client.
+In the example below, we'll use the Claude Desktop client. You can use Claude for free but you will be limited to a certain number of queries per day. If you get the Claude monthyl plan you get a larger number of queries that you can use per day.
 
 ### Install Claude Desktop
 

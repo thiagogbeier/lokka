@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { ConfidentialClientApplication } from "@azure/msal-node";
 
 // Create server instance
 const server = new McpServer({
@@ -19,35 +20,34 @@ server.tool({
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
   }),
   configurationParameters: z.object({
-    tenantId: z.string().describe("Microsoft tenant ID"),
-    clientId: z.string().describe("Microsoft application (client) ID"),
-    clientSecret: z.string().describe("Microsoft application client secret"),
+    tenantId: z.string().describe("Microsoft Entra Tenant ID"),
+    clientId: z.string().describe("Microsoft Entra application (client) ID"),
+    clientSecret: z.string().describe("Microsoft Entra application client secret"),
   }),
   execute: async (params, context) => {
     try {
       const { path, method, queryParams, body } = params;
       const { tenantId, clientId, clientSecret } = context.configuration;
 
-      // Get access token
-      const tokenResponse = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          client_id: clientId,
-          client_secret: clientSecret,
-          scope: "https://graph.microsoft.com/.default",
-          grant_type: "client_credentials",
-        }),
+      // Set up MSAL confidential client application
+      const msalConfig = {
+        auth: {
+          clientId,
+          clientSecret,
+          authority: `https://login.microsoftonline.com/${tenantId}`,
+        }
+      };
+      
+      const cca = new ConfidentialClientApplication(msalConfig);
+      
+      // Acquire token
+      const tokenResponse = await cca.acquireTokenByClientCredential({
+        scopes: ["https://graph.microsoft.com/.default"]
       });
       
-      if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
-        throw new Error(`Failed to get access token: ${JSON.stringify(errorData)}`);
+      if (!tokenResponse || !tokenResponse.accessToken) {
+        throw new Error("Failed to acquire access token");
       }
-      
-      const { access_token } = await tokenResponse.json();
       
       // Build URL with query parameters
       let url = `https://graph.microsoft.com/v1.0${path}`;
@@ -63,12 +63,13 @@ server.tool({
       const graphResponse = await fetch(url, {
         method: method.toUpperCase(),
         headers: {
-          "Authorization": `Bearer ${access_token}`,
+          "Authorization": `Bearer ${tokenResponse.accessToken}`,
           "Content-Type": "application/json",
         },
         ...(["POST", "PUT", "PATCH"].includes(method.toUpperCase()) && body ? { body: JSON.stringify(body) } : {}),
       });
       
+      // Parse response
       const responseData = await graphResponse.json();
       
       if (!graphResponse.ok) {
@@ -86,12 +87,12 @@ server.tool({
 
 // Start the server with stdio transport
 async function main() {
-    const transport = new StdioServerTransport();
-    await server.connect(transport);
-    console.error("Weather MCP Server running on stdio");
-  }
-  
-  main().catch((error) => {
-    console.error("Fatal error in main():", error);
-    process.exit(1);
-  });
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  console.error("Lokka MCP Server running on stdio");
+}
+
+main().catch((error) => {
+  console.error("Fatal error in main():", error);
+  process.exit(1);
+});

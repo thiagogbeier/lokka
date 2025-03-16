@@ -1,5 +1,6 @@
 {
-  "name": "lokka",
+  "name": "@merill/lokka",
+  "description": "Lokka is an Model Context Protocol (MCP) server for Microsoft Graph.",
   "version": "0.1.0",
   "main": "index.js",
   "type": "module",

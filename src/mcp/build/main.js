@@ -7,6 +7,8 @@ const server = new McpServer({
     name: "Lokka",
     version: "0.1.0",
 });
+// Initialize MSAL application outside the tool function
+let msalApp = null;
 server.tool("microsoftGraph", {
     path: z.string().describe("The Graph API URL path to call (e.g. '/me', '/users')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
@@ -14,23 +16,11 @@ server.tool("microsoftGraph", {
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
 }, async ({ path, method, queryParams, body }) => {
     try {
-        const tenantId = process.env.MS_GRAPH_TENANT_ID;
-        const clientId = process.env.MS_GRAPH_CLIENT_ID;
-        const clientSecret = process.env.MS_GRAPH_CLIENT_SECRET;
-        if (!tenantId || !clientId || !clientSecret) {
-            throw new Error("Missing required environment variables: MS_GRAPH_TENANT_ID, MS_GRAPH_CLIENT_ID, or MS_GRAPH_CLIENT_SECRET");
+        if (!msalApp) {
+            throw new Error("MSAL application not initialized");
         }
-        // Set up MSAL confidential client application
-        const msalConfig = {
-            auth: {
-                clientId,
-                clientSecret,
-                authority: `https://login.microsoftonline.com/${tenantId}`,
-            }
-        };
-        const cca = new ConfidentialClientApplication(msalConfig);
-        // Acquire token
-        const tokenResponse = await cca.acquireTokenByClientCredential({
+        // Acquire token using the initialized MSAL application
+        const tokenResponse = await msalApp.acquireTokenByClientCredential({
             scopes: ["https://graph.microsoft.com/.default"]
         });
         if (!tokenResponse || !tokenResponse.accessToken) {
@@ -69,6 +59,22 @@ server.tool("microsoftGraph", {
 });
 // Start the server with stdio transport
 async function main() {
+    // Check for required environment variables
+    const tenantId = process.env.MS_GRAPH_TENANT_ID;
+    const clientId = process.env.MS_GRAPH_CLIENT_ID;
+    const clientSecret = process.env.MS_GRAPH_CLIENT_SECRET;
+    if (!tenantId || !clientId || !clientSecret) {
+        throw new Error("Missing required environment variables: MS_GRAPH_TENANT_ID, MS_GRAPH_CLIENT_ID, or MS_GRAPH_CLIENT_SECRET");
+    }
+    // Initialize MSAL application once
+    const msalConfig = {
+        auth: {
+            clientId,
+            clientSecret,
+            authority: `https://login.microsoftonline.com/${tenantId}`,
+        }
+    };
+    msalApp = new ConfidentialClientApplication(msalConfig);
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("Lokka MCP Server running on stdio");

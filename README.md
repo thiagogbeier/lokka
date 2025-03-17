@@ -20,6 +20,6 @@ e.g.:
 
 See the docs for more information on how to install and configure Lokka.
 
-- [Introduction](https://lokka.dev/docs/intro)
+- [Introduction](https://lokka.dev/docs)
 - [Install guide](https://lokka.dev/docs/installation)
 - [Developer guide](https://lokka.dev/docs/developer-guide)

@@ -11,11 +11,17 @@ I built this as a proof of concept to demonstrate the capabilities of using LLMs
 
 This project is open source and available on [GitHub](https://github.com/merill/lokka).
 
-## What is the difference between this and Copilot?
+## What is the difference between Lokka and Copilot?
 
-Copilot is an enterprise grade product built and supported by Microsoft.
+Copilot is an enterprise grade AI solution from Microsoft and is natively integrated with Microsoft 365 while Lokka is an open source MCP server implementation for Microsoft Graph API.
 
-The MCP protocol is a new open protocol that makes it easy to plug in any AI model to any API
+Lokka is a simple middleware that allows you to use any compatible AI model and client.
+
+This means you can experiment using paid offerings like Claude and Cursor or use open source models like Llama from Meta or Phi from Microsoft Research and run them completely offline on your own hardware.
+
+:::note
+Lokka is not a replacement for Copilot and is not affiliated with Microsoft.
+:::
 
 ## Can I use this in production?
 

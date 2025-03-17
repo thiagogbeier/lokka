@@ -14,7 +14,7 @@ This allows you to perform administrative tasks using natural language queries.
 In technical terms, Lokka is an implementation of the [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) for the Microsoft Graph API.
 :::
 
-Here's a quick demo.
+Here's a quick demo. Read on to learn how to set this up on your own machine.
 
 <img src="https://github.com/merill/lokka/blob/main/assets/lokka-demo-1.gif?raw=true" alt="Lokka Demo - user create demo" width="500"/>
 

@@ -1,5 +1,5 @@
 ---
-title: Developer guide
+title: 🧩 Developer guide
 sidebar_position: 3
 ---
 
@@ -71,3 +71,9 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
   - `Get all the users in my tenant`
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
+
+## Learn about MCP
+
+- [Model Context Protocol Tutorial by Matt Pocock](https://www.aihero.dev/model-context-protocol-tutorial) - This is a great tutorial that explains the Model Context Protocol and how to use it.
+- [Model Context Protocol docs](https://modelcontextprotocol.io/introduction) - This is the official docs for the Model Context Protocol.
+- [Model Context Protocol Clients](https://modelcontextprotocol.io/clients) - This is a list of all the clients that support the Model Context Protocol.

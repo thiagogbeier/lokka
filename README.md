@@ -23,3 +23,8 @@ See the docs for more information on how to install and configure Lokka.
 - [Introduction](https://lokka.dev/)
 - [Install guide](https://lokka.dev/docs/installation)
 - [Developer guide](https://lokka.dev/docs/developer-guide)
+
+
+<a href="https://glama.ai/mcp/servers/lqib0o141j">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/lqib0o141j/badge" />
+</a>

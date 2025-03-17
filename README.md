@@ -2,6 +2,8 @@
 
 Lokka is a model-context-protocol server for the Microsoft Graph API that allows you to query and managing your Microsoft tenant with AI.
 
+<img src="https://github.com/merill/lokka/blob/main/assets/lokka-demo-1.gif?raw=true" alt="Lokka Demo - user create demo" width="500"/>
+
 Please see [Lokka.dev](https://lokka.dev) for how to use Lokka with your favorite AI model and chat client.
 
 Lokka lets you use Claude Desktop, or any MCP Client, to use natural language to accomplish things in your Microsoft 365 tenant through the Microsoft Graph API.

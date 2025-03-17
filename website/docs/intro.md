@@ -16,7 +16,7 @@ In technical terms, Lokka is an implementation of the [Model Context Protocol](h
 
 Here's a quick demo.
 
-<img src="/img/lokka-demo-1.gif" alt="Lokka Demo - user create demo" width="500"/>
+<img src="https://github.com/merill/lokka/blob/main/assets/lokka-demo-1.gif?raw=true" alt="Lokka Demo - user create demo" width="500"/>
 
 ### Sample queries
 

@@ -14,7 +14,7 @@ let msalApp = null;
 server.tool("microsoftGraph", {
     path: z.string().describe("The Graph API URL path to call (e.g. '/me', '/users')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
-    queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc. All paremeters are strings."),
+    queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc. All parameters are strings."),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
 }, async ({ path, method, queryParams, body }) => {
     try {
@@ -37,39 +37,54 @@ server.tool("microsoftGraph", {
             }
             url += `?${searchParams.toString()}`;
         }
-        let processedBody = body;
-        // Fix for handling stringified JSON body
-        if (body) {
-            if (typeof body === 'string') {
-                try {
-                    // If it's a string, try to parse it as JSON
-                    const parsedBody = JSON.parse(body);
-                    // Use the parsed object as the processed body
-                    processedBody = parsedBody;
-                }
-                catch (e) {
-                    // If parsing fails, keep the original string
-                    console.error('Failed to parse body as JSON, using as is:', e);
-                }
+        // Prepare headers
+        const headers = {
+            'Authorization': `Bearer ${tokenResponse.accessToken}`,
+        };
+        // For methods that send body data, add Content-Type header and ensure body is properly formatted
+        const requestOptions = {
+            method: method.toUpperCase(),
+            headers: headers
+        };
+        // Only add Content-Type and body if we're using a method that supports sending data
+        // and if body is provided
+        if (["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
+            if (body) {
+                // Add Content-Type header
+                headers['Content-Type'] = 'application/json';
+                // Ensure body is properly stringified
+                requestOptions.body = typeof body === 'string' ? body : JSON.stringify(body);
+                // Log the request body for debugging
+                logger.info(`Request body for ${method} ${path}: ${requestOptions.body}`);
+            }
+            else {
+                // If no body is provided for methods that require it, send an empty object
+                headers['Content-Type'] = 'application/json';
+                requestOptions.body = JSON.stringify({});
+                logger.info(`No body provided for ${method} ${path}. Using empty object instead.`);
             }
         }
-        // Make Graph API request
-        const graphResponse = await fetch(url, {
-            method: method.toUpperCase(),
-            headers: {
-                'Authorization': `Bearer ${tokenResponse.accessToken}`,
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'ConsistencyLevel': 'eventual' // Include consistency level in all requests
-            },
-            ...(["POST", "PUT", "PATCH"].includes(method.toUpperCase()) && body ? { body: processedBody } : {}),
-        });
-        // Parse response
-        const responseData = await graphResponse.json();
-        if (!graphResponse.ok) {
-            throw new Error(`Graph API error: ${JSON.stringify(responseData)}`);
+        else if ("GET" === method.toUpperCase()) {
+            headers['ConsistencyLevel'] = 'eventual';
         }
-        let resultText = `Result for ${method} ${path} ${queryParams}:\n\n`;
+        // Make Graph API request
+        const graphResponse = await fetch(url, requestOptions);
+        // Handle response
+        let responseData;
+        const responseText = await graphResponse.text();
+        try {
+            // Try to parse as JSON
+            responseData = responseText ? JSON.parse(responseText) : {};
+        }
+        catch (e) {
+            // If not JSON, use the raw text
+            responseData = { rawResponse: responseText };
+        }
+        if (!graphResponse.ok) {
+            logger.error(`Graph API error for ${method} ${path}:`, responseData);
+            throw new Error(`Graph API error (${graphResponse.status}): ${JSON.stringify(responseData)}`);
+        }
+        let resultText = `Result for ${method} ${path}:\n\n`;
         resultText += JSON.stringify(responseData, null, 2);
         return {
             content: [
@@ -91,6 +106,7 @@ server.tool("microsoftGraph", {
                     }),
                 },
             ],
+            isError: true
         };
     }
 });
@@ -114,9 +130,9 @@ async function main() {
     msalApp = new ConfidentialClientApplication(msalConfig);
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    console.error("Lokka MCP Server running on stdio");
 }
 main().catch((error) => {
     console.error("Fatal error in main():", error);
+    logger.error("Fatal error in main()", error);
     process.exit(1);
 });

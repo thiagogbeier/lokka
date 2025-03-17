@@ -1,5 +1,7 @@
 # Lokka
 
+[![npm version](https://badge.fury.io/js/lokka.svg)](https://badge.fury.io/js/lokka)
+
 Lokka is a model-context-protocol server for the Microsoft Graph API that allows you to query and managing your Microsoft tenant with AI.
 
 <img src="https://github.com/merill/lokka/blob/main/assets/lokka-demo-1.gif?raw=true" alt="Lokka Demo - user create demo" width="500"/>
@@ -24,7 +26,3 @@ See the docs for more information on how to install and configure Lokka.
 - [Install guide](https://lokka.dev/docs/installation)
 - [Developer guide](https://lokka.dev/docs/developer-guide)
 
-
-<a href="https://glama.ai/mcp/servers/lqib0o141j">
-  <img width="380" height="200" src="https://glama.ai/mcp/servers/lqib0o141j/badge" />
-</a>

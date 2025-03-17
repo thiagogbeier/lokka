@@ -1,14 +1,18 @@
 {
   "name": "@merill/lokka",
+  "version": "0.1.1",
   "description": "Lokka is an Model Context Protocol (MCP) server for Microsoft Graph.",
-  "version": "0.1.0",
+  "license": "MIT",
+  "author": "Merill",
+  "homepage": "https://lokka.dev",
+  "bugs": "https://github.com/merill/lokka/issues",
   "main": "index.js",
   "type": "module",
   "bin": {
-    "lokka": "./build/index.js"
+    "lokka": "build/main.js"
   },
   "scripts": {
-    "build": "tsc && chmod 755 build/index.js"
+    "build": "tsc && chmod 755 build/main.js"
   },
   "files": [
     "build"

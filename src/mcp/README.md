@@ -1,20 +1,21 @@
 # Lokka
 
-Lokka is a model-context-protocol tool for querying and managing your Microsoft tenant with AI.
+Lokka is an MCP server for querying and managing your Microsoft 365 tenant using the Microsoft Graph API. It acts as a bridge between the Microsoft Graph API and any compatible MCP client, allowing you to interact with your Microsoft 365 tenant using natural language queries.
+
+Lokka is designed to be used with any compatible MCP client, such as Claude Desktop, Cursor, Goose, or any other AI model and client that support the Model Context Protocol. It provides a simple and intuitive way to manage your Microsoft 365 tenant using natural language queries.
 
 Follow this guide to get started with Lokka.
 
 ## Pre-requisites
 
 - Install [Node.js](https://nodejs.org/en/download/)
-- Clone the Lokka repository from GitHub [https://github.com/merill/lokka](https://github.com/merill/lokka)
 
 ### Create an Entra Application
 
 - Open [Entra admin center](https://entra.microsoft.com) > **Identity** > **Applications** > **App registrations**
   - Tip: [enappreg.cmd.ms](https://enappreg.cmd.ms) is a shortcut to the App registrations page.
 - Select **New registration**
-- Enter a name for the application (e.g. `Lokka Agent Tool`)
+- Enter a name for the application (e.g. `Lokka`)
 - Select **Register**
 
 ### Grant permissions to Microsoft Graph
@@ -24,6 +25,7 @@ Follow this guide to get started with Lokka.
 - Select **Microsoft Graph** > **Application permissions**
 - Search for each of the permissions and check the box next to each permission you want to allow.
   - The agent will only be able to perform the actions based on the permissions you grant it.
+  - We recommend starting with User.Read.All to be able to query information about users in your tenant. To learn more about the other permissions you can grant, see [Microsoft Graph permissions reference](https://learn.microsoft.com/en-us/graph/permissions-reference).
 - Select **Add permissions**
 - Select **Grant admin consent for [your organization]**
 - Select **Yes** to confirm
@@ -35,25 +37,9 @@ Follow this guide to get started with Lokka.
 - Select **Add**
 - Copy the value of the secret, we will use this value in the agent configuration file.
 
-## Building the project
+## Configuring the agent tool
 
-- Open a terminal and navigate to the Lokka project directory.
-- Change into the folder `\src\mcp\`
-- Run the following command to install the dependencies:
-
-  ```bash
-  npm install
-  ```
-
-- After the dependencies are installed, run the following command to build the project:
-
-  ```bash
-  npm run build
-  ```
-
-## Configuring the agent
-
-Now you can use the Lokka agent tool with any compatible MCP client. See [MCP clients](https://modelcontextprotocol.io/clients) for a list of compatible clients.
+Now you can use Lokka with any compatible MCP client. See [MCP clients](https://modelcontextprotocol.io/clients) for a list of compatible clients.
 
 In the example below, we'll use the Claude Desktop client. You can use Claude for free but you will be limited to a certain number of queries per day. If you get the Claude monthly plan you get a larger number of queries that you can use per day.
 
@@ -63,7 +49,7 @@ In the example below, we'll use the Claude Desktop client. You can use Claude fo
 - Install the application by following the instructions on the website.
 - Open the application and sign in with your account.
 
-### Configure the Lokka tool
+### Configure Lokka
 
 - In Claude Desktop, open the settings by clicking on the hamburger icon in the top left corner.
 - Select **File** > **Settings** (or press `Ctrl + ,`)
@@ -77,17 +63,18 @@ In the example below, we'll use the Claude Desktop client. You can use Claude fo
 ```json
 {
   "mcpServers": {
-      "lokka": {
-          "command": "node",
-          "args": [
-              "<absolute-path-to-index.js>/src/mcp/build/index.js"
-          ],
-          "env": {
-            "MS_GRAPH_TENANT_ID": "<tenant-id>",
-            "MS_GRAPH_CLIENT_ID": "<client-id>",
-            "MS_GRAPH_CLIENT_SECRET": "<client-secret>"
-          }
+    "lokka": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@merill/lokka"
+      ],
+      "env": {
+        "MS_GRAPH_TENANT_ID": "<tenant_id>",
+        "MS_GRAPH_CLIENT_ID": "<client_id>",
+        "MS_GRAPH_CLIENT_SECRET": "<client_secret>",
       }
+    }
   }
 }
 ```

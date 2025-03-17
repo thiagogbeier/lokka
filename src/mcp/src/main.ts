@@ -2,12 +2,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { ConfidentialClientApplication } from "@azure/msal-node";
+import { logger } from "./logger.js";
 
 // Create server instance
 const server = new McpServer({
   name: "Lokka",
   version: "0.1.0",
 });
+
+logger.info("Starting Lokka MCP Server");
 
 // Initialize MSAL application outside the tool function
 let msalApp: ConfidentialClientApplication | null = null;
@@ -17,10 +20,10 @@ server.tool(
   {
     path: z.string().describe("The Graph API URL path to call (e.g. '/me', '/users')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
-    queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc."),
+    queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc. All paremeters are strings."),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
   },
-  async ({path, method, queryParams, body}) => {
+  async ({ path, method, queryParams, body }) => {
     try {
       if (!msalApp) {
         throw new Error("MSAL application not initialized");
@@ -45,14 +48,16 @@ server.tool(
         url += `?${searchParams.toString()}`;
       }
 
+
       // Make Graph API request
       const graphResponse = await fetch(url, {
         method: method.toUpperCase(),
         headers: {
-          "Authorization": `Bearer ${tokenResponse.accessToken}`,
-          "Content-Type": "application/json",
+          'Authorization': `Bearer ${tokenResponse.accessToken}`,
+          'Content-Type': 'application/json',
+          'ConsistencyLevel': 'eventual' // Include consistency level in all requests
         },
-        ...(["POST", "PUT", "PATCH"].includes(method.toUpperCase()) && body ? { body: JSON.stringify(body) } : {}),
+        ...(["POST", "PUT", "PATCH"].includes(method.toUpperCase()) && body ? { body: body } : {}),
       });
 
       // Parse response
@@ -62,10 +67,29 @@ server.tool(
         throw new Error(`Graph API error: ${JSON.stringify(responseData)}`);
       }
 
-      return responseData;
-    } catch (error) {
+      let resultText = `Result for ${method} ${path} ${queryParams}:\n\n`;
+      resultText += JSON.stringify(responseData, null, 2);
+
       return {
-        error: error instanceof Error ? error.message : String(error),
+        content: [
+          {
+            type: "text" as const,
+            text: resultText,
+          },
+        ],
+      };
+
+    } catch (error) {
+      logger.error("Error in microsoftGraph tool:", error);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
       };
     }
   },
@@ -90,15 +114,15 @@ async function main() {
       authority: `https://login.microsoftonline.com/${tenantId}`,
     }
   };
-  
+
   msalApp = new ConfidentialClientApplication(msalConfig);
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Lokka MCP Server running on stdio");
 }
 
 main().catch((error) => {
   console.error("Fatal error in main():", error);
+  logger.error("Fatal error in main()", error);
   process.exit(1);
 });

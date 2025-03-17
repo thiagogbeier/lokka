@@ -2,17 +2,19 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { ConfidentialClientApplication } from "@azure/msal-node";
+import { logger } from "./logger.js";
 // Create server instance
 const server = new McpServer({
     name: "Lokka",
     version: "0.1.0",
 });
+logger.info("Starting Lokka MCP Server");
 // Initialize MSAL application outside the tool function
 let msalApp = null;
 server.tool("microsoftGraph", {
     path: z.string().describe("The Graph API URL path to call (e.g. '/me', '/users')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
-    queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc."),
+    queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc. All paremeters are strings."),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
 }, async ({ path, method, queryParams, body }) => {
     try {
@@ -35,25 +37,60 @@ server.tool("microsoftGraph", {
             }
             url += `?${searchParams.toString()}`;
         }
+        let processedBody = body;
+        // Fix for handling stringified JSON body
+        if (body) {
+            if (typeof body === 'string') {
+                try {
+                    // If it's a string, try to parse it as JSON
+                    const parsedBody = JSON.parse(body);
+                    // Use the parsed object as the processed body
+                    processedBody = parsedBody;
+                }
+                catch (e) {
+                    // If parsing fails, keep the original string
+                    console.error('Failed to parse body as JSON, using as is:', e);
+                }
+            }
+        }
         // Make Graph API request
         const graphResponse = await fetch(url, {
             method: method.toUpperCase(),
             headers: {
-                "Authorization": `Bearer ${tokenResponse.accessToken}`,
-                "Content-Type": "application/json",
+                'Authorization': `Bearer ${tokenResponse.accessToken}`,
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'ConsistencyLevel': 'eventual' // Include consistency level in all requests
             },
-            ...(["POST", "PUT", "PATCH"].includes(method.toUpperCase()) && body ? { body: JSON.stringify(body) } : {}),
+            ...(["POST", "PUT", "PATCH"].includes(method.toUpperCase()) && body ? { body: processedBody } : {}),
         });
         // Parse response
         const responseData = await graphResponse.json();
         if (!graphResponse.ok) {
             throw new Error(`Graph API error: ${JSON.stringify(responseData)}`);
         }
-        return responseData;
+        let resultText = `Result for ${method} ${path} ${queryParams}:\n\n`;
+        resultText += JSON.stringify(responseData, null, 2);
+        return {
+            content: [
+                {
+                    type: "text",
+                    text: resultText,
+                },
+            ],
+        };
     }
     catch (error) {
+        logger.error("Error in microsoftGraph tool:", error);
         return {
-            error: error instanceof Error ? error.message : String(error),
+            content: [
+                {
+                    type: "text",
+                    text: JSON.stringify({
+                        error: error instanceof Error ? error.message : String(error),
+                    }),
+                },
+            ],
         };
     }
 });

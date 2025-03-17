@@ -75,5 +75,5 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
 ## Learn about MCP
 
 - [Model Context Protocol Tutorial by Matt Pocock](https://www.aihero.dev/model-context-protocol-tutorial) - This is a great tutorial that explains the Model Context Protocol and how to use it.
-- [Model Context Protocol docs](https://modelcontextprotocol.io/introduction) - This is the official docs for the Model Context Protocol.
-- [Model Context Protocol Clients](https://modelcontextprotocol.io/clients) - This is a list of all the clients that support the Model Context Protocol.
+- [Model Context Protocol docs](https://modelcontextprotocol.io/introduction) - The official docs for the Model Context Protocol.
+- [Model Context Protocol Clients](https://modelcontextprotocol.io/clients) - List of all the clients that support the Model Context Protocol.

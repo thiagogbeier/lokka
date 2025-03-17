@@ -3,21 +3,23 @@ title: 🚀 Installation guide
 sidebar_position: 2
 ---
 
+To get started with Lokka you need to
+
+1. Create an Entra app and 
+1. Configure it with Claude Desktop (or any other compatible MCP client).
+
 ## Pre-requisites
 
 - Install [Node.js](https://nodejs.org/en/download/)
+  - If you already have Node installed you can skip this step (check by running `node -v` at the command prompt).
 
-### Create an Entra Application
+## Create an Entra Application for Lokka
 
 - Open [Entra admin center](https://entra.microsoft.com) > **Identity** > **Applications** > **App registrations**
   - Tip: [enappreg.cmd.ms](https://enappreg.cmd.ms) is a shortcut to the App registrations page.
 - Select **New registration**
-- Enter a name for the application (e.g. `Lokka Agent Tool`)
+- Enter a name for the application (e.g. `Lokka`)
 - Select **Register**
-
-### Grant permissions to Microsoft Graph
-
-- Open the application you created in the previous step
 - Select **API permissions** > **Add a permission**
 - Select **Microsoft Graph** > **Application permissions**
 - Search for each of the permissions and check the box next to each permission you want to allow.
@@ -26,7 +28,7 @@ sidebar_position: 2
 - Select **Grant admin consent for [your organization]**
 - Select **Yes** to confirm
 
-### Create a client secret
+#### Create a client secret
 
 - Select **Certificates & secrets** > **Client secrets** > **New client secret**
 - Enter a description for the secret (e.g. `Agent Config`)
@@ -45,7 +47,7 @@ In the example below, we'll use the free Claude Desktop client.
 - Install the application by following the instructions on the website.
 - Open the application and sign in with your account (you can register for a free account).
 
-### Configure the Lokka tool
+### Add Lokka to Claude Desktop
 
 - In Claude Desktop, open Settings by clicking on the hamburger icon in the top left corner.
 - Select **File** > **Settings** (or press `Ctrl + ,`)

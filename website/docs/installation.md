@@ -1,5 +1,5 @@
 ---
-title: 🚀 Installation guide
+title: 🚀 Install
 sidebar_position: 2
 ---
 

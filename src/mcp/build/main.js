@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
@@ -113,11 +114,11 @@ server.tool("microsoftGraph", {
 // Start the server with stdio transport
 async function main() {
     // Check for required environment variables
-    const tenantId = process.env.MS_GRAPH_TENANT_ID;
-    const clientId = process.env.MS_GRAPH_CLIENT_ID;
-    const clientSecret = process.env.MS_GRAPH_CLIENT_SECRET;
+    const tenantId = process.env.TENANT_ID;
+    const clientId = process.env.CLIENT_ID;
+    const clientSecret = process.env.CLIENT_SECRET;
     if (!tenantId || !clientId || !clientSecret) {
-        throw new Error("Missing required environment variables: MS_GRAPH_TENANT_ID, MS_GRAPH_CLIENT_ID, or MS_GRAPH_CLIENT_SECRET");
+        throw new Error("Missing required environment variables: TENANT_ID, CLIENT_ID, or CLIENT_SECRET");
     }
     // Initialize MSAL application once
     const msalConfig = {

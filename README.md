@@ -1,6 +1,22 @@
 # Lokka
 
-Lokka is a model-context-protocol tool for querying and managing your Microsoft tenant with AI.
+Lokka is a model-context-protocol server for the Microsoft Graph API that allows you to query and managing your Microsoft tenant with AI.
+
+Please see [Lokka.dev](https://lokka.dev) for how to use Lokka with your favorite AI model and chat client.
+
+Lokka lets you use Claude Desktop, or any MCP Client, to use natural language to accomplish things in your Microsoft 365 tenant through the Microsoft Graph API.
+
+e.g.:
+
+- `Create a new security group called 'Sales and HR' with a dynamic rule based on the department attribute.` 
+- `Find all the conditional access policies that haven't excluded the emergency access account`
+- `Show me all the Intune device configuration policies assigned to the 'Call center' group`
+
+![How does Lokka work?](https://github.com/merill/lokka/blob/main/website/docs/assets/how-does-lokka-mcp-server-work.png?raw=true)
+
+- [Introduction](https://lokka.dev/docs/intro)
+- [Install guide](https://lokka.dev/docs/installation)
+- [Developer guide](https://lokka.dev/docs/developer-guide)
 
 Follow this guide to get started with Lokka.
 
@@ -72,7 +88,7 @@ In the example below, we'll use the Claude Desktop client. You can use Claude fo
 - Add the following configuration to the file, using the information you in the **Overview** blade of the Entra application you created earlier.
 
 - Note: On Windows the path needs to be escaped with `\\` or use `/` instead of `\`.
-  - E.g. `C:\\Users\\<username>\\Documents\\lokka\\src\\mcp\\build\\index.js` or `C:/Users/<username>/Documents/lokka/src/mcp/build/index.js`
+  - E.g. `C:\\Users\\<username>\\Documents\\lokka\\src\\mcp\\build\\main.js` or `C:/Users/<username>/Documents/lokka/src/mcp/build/main.js`
 
 ```json
 {
@@ -80,12 +96,12 @@ In the example below, we'll use the Claude Desktop client. You can use Claude fo
       "lokka": {
           "command": "node",
           "args": [
-              "<absolute-path-to-index.js>/src/mcp/build/index.js"
+              "<absolute-path-to-main.js>/src/mcp/build/main.js"
           ],
           "env": {
-            "MS_GRAPH_TENANT_ID": "<tenant-id>",
-            "MS_GRAPH_CLIENT_ID": "<client-id>",
-            "MS_GRAPH_CLIENT_SECRET": "<client-secret>"
+            "TENANT_ID": "<tenant-id>",
+            "CLIENT_ID": "<client-id>",
+            "CLIENT_SECRET": "<client-secret>"
           }
       }
   }

@@ -8,11 +8,15 @@ slug: /
 
 Lokka lets you use Claude Desktop, or any MCP Client, to use natural language to accomplish things in your Microsoft 365 tenant through the Microsoft Graph API.
 
-e.g.:
+### Sample queries
 
-- `Create a new security group called 'Sales and HR' with a dynamic rule based on the department attribute.` 
+Here are some examples of queries you can use with Lokka.
+
+- `Create a new security group called 'Sales and HR' with a dynamic rule based on the department attribute.`
 - `Find all the conditional access policies that haven't excluded the emergency access account`
-- `Show me all the device configuration policies assigned to the 'Call center' group`
+- `Show me all the Intune device configuration policies assigned to the 'Call center' group`
+
+You can ask Lokka to do anything that the Microsoft Graph API can do which includes support for Entra, Intune, Teams and SharePoint. The agent will only be able to perform the actions based on the permissions you grant it.
 
 ## What is MCP?
 

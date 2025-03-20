@@ -3,6 +3,8 @@ title: 🚀 Install
 sidebar_position: 2
 ---
 
+# Install Lokka
+
 To get started with Lokka you need to
 
 1. Create an Entra app and 

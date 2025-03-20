@@ -164,11 +164,11 @@ const config = {
             title: "My Entra specials",
             items: [
               {
-                label: "Newsletter - Entra.News",
+                label: "Entra.News - My weekly newsletter",
                 href: "https://entra.news",
               },
               {
-                label: "Podcast - Entra.Chat",
+                label: "Entra.Chat - My weekly podcast",
                 href: "https://entra.chat",
               },
               {

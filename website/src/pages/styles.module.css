@@ -61,11 +61,14 @@
   position: relative;
   cursor: pointer;
   width: 100%;
+  transform-style: preserve-3d;
+  transform: perspective(1000px);
+  will-change: transform;
   transition: transform 0.3s ease;
 }
 
 .thumbnailContainer:hover {
-  transform: rotate(-1deg) scale(1.02);
+  transform: none;
 }
 
 .thumbnail {
@@ -146,6 +149,19 @@
   background-color: #fff;
   color: #000;
   text-decoration: none;
+}
+
+/* Dark theme styles */
+html[data-theme='dark'] .tryButton {
+  background-color: #fff;
+  color: #000;
+  border: 2px solid #fff;
+}
+
+html[data-theme='dark'] .tryButton:hover {
+  background-color: transparent;
+  color: #fff;
+  border: 2px solid #fff;
 }
 
 @media screen and (max-width: 996px) {

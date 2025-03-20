@@ -7,12 +7,12 @@ import { logger } from "./logger.js";
 // Create server instance
 const server = new McpServer({
     name: "Lokka",
-    version: "0.1.0",
+    version: "0.1.6",
 });
 logger.info("Starting Lokka MCP Server");
 // Initialize MSAL application outside the tool function
 let msalApp = null;
-server.tool("microsoftGraph", {
+server.tool("Lokka-MicrosoftGraph", "A tool to call Microsoft Graph API. It supports querying a Microsoft 365 tenant using the Graph API. Updates are also supported if permissions are provided.", {
     path: z.string().describe("The Graph API URL path to call (e.g. '/me', '/users')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
     queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc. All parameters are strings."),

@@ -23,7 +23,7 @@ Follow the guide at [Lokka.dev](https://lokka.dev) to get started with Lokka and
 ```json
 {
   "mcpServers": {
-    "lokka": {
+    "Lokka-Microsoft-Graph": {
       "command": "npx",
       "args": ["-y", "@merill/lokka"],
       "env": {

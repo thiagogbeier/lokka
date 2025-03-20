@@ -96,7 +96,7 @@ export default function Home() {
   return (
     <Layout
       title="Lokka"
-      description="Beyond Commands, Beyond Clicks. A glimpse into the future of Managing Microsoft 365!">
+      description="Lokka is an AI agent tool that brings the power of Microsoft Graph to AI agents like GitHub Copilot and Claude that run on your local desktop.">
       <main>
         <div className={styles.hero}>
           <div className={styles.container}>
@@ -109,7 +109,7 @@ export default function Home() {
             <div className={styles.buttonContainer}>
               <Link
                 className={styles.tryButton}
-                to="/docs/installation">
+                to="/docs/install">
                 Try Lokka
               </Link>
             </div>

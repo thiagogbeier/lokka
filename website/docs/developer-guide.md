@@ -7,7 +7,7 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
 
 ## Pre-requisites
 
-- Follow the [installation guide](https://lokka.dev/docs/installation) to install Node and create the Entra application.
+- Follow the [installation guide](https://lokka.dev/docs/install) to install Node and create the Entra application.
 - Clone the Lokka repository from GitHub [https://github.com/merill/lokka](https://github.com/merill/lokka)
 
 ## Building the project
@@ -43,7 +43,7 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
 ```json
 {
   "mcpServers": {
-      "lokka": {
+      "Lokka-Microsoft-Graph": {
           "command": "node",
           "args": [
               "<absolute-path-to-main.js>/src/mcp/build/main.js"

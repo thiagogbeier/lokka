@@ -2,20 +2,23 @@
 title: 🚀 Install
 sidebar_position: 2
 ---
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 # Install Lokka
 
 To get started with Lokka you need to
 
 1. Create an Entra app and 
-1. Configure it with Claude Desktop (or any other compatible MCP client).
+1. Configure it with your AI agent (VS Code GitHub Copilot, Claude Desktop or any other compatible MCP client).
 
 ## Pre-requisites
 
 - Install [Node.js](https://nodejs.org/en/download/)
-  - If you already have Node installed you can skip this step (check by running `node -v` at the command prompt).
+  - If you already have Node 16 or higher installed you can skip this step.
+  - Check by running `node -v` at the command prompt.
 
-## Create an Entra Application for Lokka
+## 1️⃣ → Create an Entra app for Lokka
 
 - Open [Entra admin center](https://entra.microsoft.com) > **Identity** > **Applications** > **App registrations**
   - Tip: [enappreg.cmd.ms](https://enappreg.cmd.ms) is a shortcut to the App registrations page.
@@ -37,11 +40,16 @@ To get started with Lokka you need to
 - Select **Add**
 - Copy the value of the secret, we will use this value in the agent configuration file.
 
-## Configuring the agent
+## 2️⃣ → Configure the agent
 
-Now you can use the Lokka agent tool with any compatible MCP client. See [MCP clients](https://modelcontextprotocol.io/clients) for a list of compatible clients.
+Now you can use the Lokka agent tool with any compatible MCP client and LLM combo.
 
-In the example below, we'll use the free Claude Desktop client.
+Claude is the simplest way to get started and provides the best experience. You can use the free version of Claude Desktop to test Lokka (there are daily limits on the free version).
+
+GitHub Copilot Agent in VS Code is a great option if you already have GitHub Copilot Pro subscription. It comes with Claude 3.7 Sonnet support.
+
+<Tabs>
+  <TabItem value="claude" label="Claude" default>
 
 ### Install Claude Desktop
 
@@ -88,3 +96,46 @@ In the example below, we'll use the free Claude Desktop client.
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
 
+</TabItem>
+  <TabItem value="vscode" label="VS Code">
+### Pre-requisites
+
+- Install the latest version of [VS Code - Insider](https://code.visualstudio.com/insiders/)
+  - Note: The Agent integration with MCP is currently only available in the Insiders version of VS Code.
+- Install the latest version of [GitHub Copilot in VS Code](https://code.visualstudio.com/docs/copilot/setup)
+
+### Add Lokka to GitHub Copilot
+
+- In VS Code, open the Command Palette by pressing `Ctrl + Shift +P` (or `Cmd + Shift + P` on Mac).
+- Type `MCP` and select `MCP: Add Server...`
+- Select `NPM Package`
+  - Package name: `@merill/lokka`
+  - Select `Allow`
+  - Tenant ID: `<tenant-id>`
+  - Client ID: `<client-id>`
+  - Client secret : `<client-secret>`
+  - Server ID: `Lokka-Microsoft-Graph`
+- Where to save configuration: `User Settings`
+- This will open the `settings.json` file in VS Code.
+- `File` > `Save` to save the file.
+
+- Open the Command Palette again and type `MCP` and select `MCP: List Servers`
+- Select `Lokka-Microsoft-Graph` from the list of servers.
+- Selet `Start Server`
+- This will start the Lokka server and you should see a message in the output window saying `Connection state: Running`.
+
+### Testing the agent
+
+- Start a new instance of VS Code (File > New Window)
+- Open `Copilot Edits` from `View` → `Copilot Edits`
+- At the bottom of the Copilot Edits panel (below the chat box)
+  - Select `Agent` (if it is showing `Edit`)
+  - Select `Claude 3.7 Sonnet` (if it is showing `GPT-40`)
+
+- Now you can start quering your Microsoft tenant using the Lokka agent tool.
+- Some sample queries you can try are:
+  - `Get all users in my tenant`
+  - `Show me the details for John Doe`
+  - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
+</TabItem>
+</Tabs>

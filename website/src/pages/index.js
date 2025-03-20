@@ -80,7 +80,7 @@ function VideoPlayer() {
       ) : (
         <iframe 
           className={styles.videoFrame}
-          src="https://www.youtube.com/embed/7v52C9WZaxY?autoplay=1"
+          src="https://www.youtube.com/embed/f-ECqQSpLCM?autoplay=1"
           title="Lokka Demo - Introducing Lokka"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

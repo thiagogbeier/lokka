@@ -11,7 +11,7 @@ import {themes as prismThemes} from 'prism-react-renderer';
 /** @type {import('@docusaurus/types').Config} */
 const config = {
   title: 'Lokka',
-  tagline: 'Dinosaurs are cool',
+  tagline: 'Beyond Commands, Beyond Clicks. A glimpse into the future of managing Microsoft 365 with AI!',
   favicon: 'img/favicon.ico',
 
   // Set the production url of your site here
@@ -42,12 +42,11 @@ const config = {
       /** @type {import('@docusaurus/preset-classic').Options} */
       ({
         docs: {
-          routeBasePath: '/',
           sidebarPath: './sidebars.js',
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/merill/lokka/tree/main/website/',
+            'https://github.com/merill/lokka/tree/main/website/docs',
         },
         blog: {
           showReadingTime: true,
@@ -58,7 +57,7 @@ const config = {
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
           editUrl:
-            'https://github.com/facebook/docusaurus/tree/main/packages/create-docusaurus/templates/shared/',
+            'https://github.com/merill/lokka/tree/main/docs/',
           // Useful options to enforce blogging best practices
           onInlineTags: 'warn',
           onInlineAuthors: 'warn',
@@ -83,6 +82,12 @@ const config = {
           src: 'img/logo.svg',
         },
         items: [
+          {
+            type: "docSidebar",
+            sidebarId: "siteSidebar",
+            position: "left",
+            label: "Docs",
+          },
           {
             href: 'https://graphxray.merill.net',
             label: 'Graph X-Ray',

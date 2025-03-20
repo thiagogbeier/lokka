@@ -66,8 +66,8 @@ function VideoPlayer() {
         >
           <img 
             className={styles.thumbnail} 
-            src="https://img.youtube.com/vi/7v52C9WZaxY/maxresdefault.jpg" 
-            alt="Lokka Demo Video" 
+            src="/img/lokka-intro-video.png" 
+            alt="Lokka Demo - Introducing Lokka" 
           />
           <div className={styles.playButtonContainer}>
             <div className={styles.playButtonOuter}>
@@ -81,7 +81,7 @@ function VideoPlayer() {
         <iframe 
           className={styles.videoFrame}
           src="https://www.youtube.com/embed/7v52C9WZaxY?autoplay=1"
-          title="Lokka Demo"
+          title="Lokka Demo - Introducing Lokka"
           frameBorder="0"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           allowFullScreen

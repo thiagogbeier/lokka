@@ -43,4 +43,4 @@ Lokka is an implementation of the MCP protocol for the Microsoft Graph API.
 
 Want to try Lokka? It's easy to get started!
 
-Check out the [installation guide](install).
+Check out the [installation guide](./install).

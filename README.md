@@ -26,3 +26,49 @@ See the docs for more information on how to install and configure Lokka.
 - [Install guide](https://lokka.dev/docs/installation)
 - [Developer guide](https://lokka.dev/docs/developer-guide)
 
+## Components
+
+### Tools
+
+1. `Lokka-MicrosoftGraph`
+   - Call Microsoft Graph API. Supports querying a Microsoft 365 tenant using the Graph API. Updates are also supported if permissions are provided.
+   - Input:
+     - `path` (string): The Graph API URL path to call (e.g. '/me', '/users', '/groups')
+     - `method` (string): HTTP method to use (e.g., get, post, put, patch, delete)
+     - `queryParams` (string): Array of query parameters like $filter, $select, etc. All parameters are strings.
+     - `body` (JSON): The request body (for POST, PUT, PATCH)
+   - Returns: Results from the Graph API call.
+
+
+### Environment Variables
+
+The configuration of the server is done using environment variables. The following environment variables are required:
+
+| Name | Description |
+|------|-------------|
+| `TENANT_ID` | The ID of the Microsoft Entra tenant. |
+| `CLIENT_ID` | The ID of the application registered in Microsoft Entra. |
+| `CLIENT_SECRET` | The client secret of the application registered in Microsoft Entra. |
+
+## Installation
+
+To use this server with the Claude Desktop app, add the following configuration to the "mcpServers" section of your
+`claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft-Graph": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "CLIENT_SECRET": "<client-secret>"
+      }
+    }
+  }
+}
+```
+
+Make sure to replace `<tenant-id>`, `<client-id>`, and `<client-secret>` with the actual values from your Microsoft Entra application. (See [Install Guide](https://lokka.dev/docs/installation) for more details on how to create an Entra app and configure the agent.)

@@ -64,6 +64,8 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
 
 ### Testing the agent
 
+#### Testing with Claude Desktop
+
 - Open the Claude Desktop application.
 - In the chat window on the bottom right you should see a hammer icon if the configuration is correct.
 - Now you can start quering your Microsoft tenant using the Lokka agent tool.
@@ -71,6 +73,16 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
   - `Get all the users in my tenant`
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
+
+#### Testing with MCP Inspector
+
+MCP Inspector is a tool that allows you to test and debug your MCP server directly (without an LLM). It provides a user interface to send requests to the server and view the responses.
+
+See the [MCP Inspector](https://modelcontextprotocol.io/docs/tools/inspector) for more information.
+
+```console
+npx @modelcontextprotocol/inspector node path/to/server/main.js args...
+```
 
 ## Learn about MCP
 

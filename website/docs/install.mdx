@@ -120,6 +120,27 @@ GitHub Copilot Agent in VS Code is a great option if you already have GitHub Cop
 - This will open the `settings.json` file in VS Code.
 - `File` > `Save` to save the file.
 
+<details>
+<summary>❗ Additional configuration on Windows (click to expand)</summary>
+
+Update the settings.json file and change the command and args parameters as shown below.
+```json {4,5}
+{
+  "mcp.servers": {
+    "Lokka-Microsoft-Graph": {
+      "command": "cmd",
+      "args": ["/c", "-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "CLIENT_SECRET": "<client-secret>"
+      }
+    }
+  }
+}
+```
+</details>
+
 - Open the Command Palette again and type `MCP` and select `MCP: List Servers`
 - Select `Lokka-Microsoft-Graph` from the list of servers.
 - Selet `Start Server`

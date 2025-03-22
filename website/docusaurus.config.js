@@ -46,7 +46,7 @@ const config = {
           sidebarPath: "./sidebars.js",
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: "https://github.com/merill/lokka/tree/main/website/docs",
+          editUrl: "https://github.com/merill/lokka/tree/main/website/",
         },
         blog: {
           showReadingTime: true,
@@ -56,7 +56,7 @@ const config = {
           },
           // Please change this to your repo.
           // Remove this to remove the "edit this page" links.
-          editUrl: "https://github.com/merill/lokka/tree/main/docs/",
+          editUrl: "https://github.com/merill/lokka/tree/main/",
           // Useful options to enforce blogging best practices
           onInlineTags: "warn",
           onInlineAuthors: "warn",

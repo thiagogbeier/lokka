@@ -102,7 +102,7 @@ export default function Home() {
           <div className={styles.container}>
             <div className={styles.heroContent}>
               <h1 className={styles.heroTitle}>Lokka</h1>
-              <p className={styles.heroSubtitle}>Lokka is an AI agent tool that brings the power of Microsoft Graph to AI agents like GitHub Copilot and Claude that run on your local desktop.</p>
+              <p className={styles.heroSubtitle}>Lokka is an AI agent tool that brings the power of Microsoft Graph to AI agents like GitHub Copilot and Claude. The best part is you can get started for free and it runs on your desktop.</p>
                 <p className={styles.heroSubtitle}>Get a glimpse into the future of administering Microsoft 365 👇</p>
             </div>
             <VideoPlayer />

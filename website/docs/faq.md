@@ -40,3 +40,9 @@ No, Lokka is not a Microsoft product and is not affiliated with Microsoft.
 ## How do I report issues?
 
 If you encounter any issues or have suggestions for improvements, please open an issue on the [GitHub repository](https://github.com/merill/lokka/issues].
+
+## I'm seeing this error message, what should I do?
+
+### TypeError `[ERR_INVALID_ARG_TYPE]`: The "path" argument must be of type string. Received undefined
+
+Make sure you have the the latest version of Node.js installed (v22.10.0 or higher). See [MCP Sever issues](https://github.com/merill/lokka/issues/3) for other tips.

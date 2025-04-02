@@ -17,14 +17,14 @@ logger.info("Starting Lokka Multi-Microsoft API MCP Server");
 let msalApp: ConfidentialClientApplication | null = null;
 
 server.tool(
-  "Lokka-MicrosoftAPIs",
+  "Lokka-Microsoft",
   "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management.",
   {
-    apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query"),
+    apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management."),
     path: z.string().describe("API-specific path to query"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
-    apiVersion: z.string().optional().describe("Azure Resource Management API version (required for Azure)"),
-    subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)"),
+    apiVersion: z.string().optional().describe("Azure Resource Management API version (required for apiType Azure)"),
+    subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)."),
     queryParams: z.record(z.string()).optional().describe("Query parameters for the request"),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
   },

@@ -2,19 +2,26 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ConfidentialClientApplication } from "@azure/msal-node";
+import { ClientSecretCredential } from "@azure/identity";
+import { Client, PageIterator, PageCollection } from "@microsoft/microsoft-graph-client";
+import { TokenCredentialAuthenticationProvider } from "@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js";
+import fetch from 'isomorphic-fetch'; // Required polyfill for Graph client
 import { logger } from "./logger.js";
+
+// Set up global fetch for the Microsoft Graph client
+(global as any).fetch = fetch;
 
 // Create server instance
 const server = new McpServer({
   name: "Lokka-Microsoft",
-  version: "0.1.8",
+  version: "0.1.9", // Incremented version for refactor
 });
 
-logger.info("Starting Lokka Multi-Microsoft API MCP Server");
+logger.info("Starting Lokka Multi-Microsoft API MCP Server (v0.1.9 - Refactored with Graph SDK)");
 
-// Initialize MSAL application outside the tool function
-let msalApp: ConfidentialClientApplication | null = null;
+// Initialize Graph Client and Azure Auth Credential outside the tool function
+let graphClient: Client | null = null;
+let azureCredential: ClientSecretCredential | null = null; // For Azure RM calls
 
 server.tool(
   "Lokka-Microsoft",
@@ -30,263 +37,235 @@ server.tool(
     graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
     fetchAll: z.boolean().optional().default(false).describe("Set to true to automatically fetch all pages for list results (e.g., users, groups). Default is false."),
   },
-  async ({ 
-    apiType, 
-    path, 
-    method, 
-    apiVersion, 
-    subscriptionId, 
-    queryParams, 
-    body, 
+  async ({
+    apiType,
+    path,
+    method,
+    apiVersion,
+    subscriptionId,
+    queryParams,
+    body,
     graphApiVersion,
     fetchAll
-  }: { 
-    apiType: "graph" | "azure"; 
-    path: string; 
-    method: "get" | "post" | "put" | "patch" | "delete"; 
-    apiVersion?: string; 
-    subscriptionId?: string; 
-    queryParams?: Record<string, string>; 
-    body?: any; 
+  }: {
+    apiType: "graph" | "azure";
+    path: string;
+    method: "get" | "post" | "put" | "patch" | "delete";
+    apiVersion?: string;
+    subscriptionId?: string;
+    queryParams?: Record<string, string>;
+    body?: any;
     graphApiVersion: "v1.0" | "beta";
-    fetchAll: boolean; 
+    fetchAll: boolean;
   }) => {
-    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}`); // Log input params
-    let determinedUrl: string | undefined; // Declare with wider scope
+    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}`);
+    let determinedUrl: string | undefined;
+
     try {
-      if (!msalApp) {
-        throw new Error("MSAL application not initialized");
-      }
+      let responseData: any;
 
-      // Determine correct scope and base URL based on API type
-      const graphBaseUrl = `https://graph.microsoft.com/${graphApiVersion}`; // Use the parameter directly
-      logger.info(`Using graphBaseUrl: ${graphBaseUrl} based on graphApiVersion: ${graphApiVersion}`); // Log determined URL
-
-      const apiConfig = { // Keep apiConfig local to try block
-        graph: {
-          scope: "https://graph.microsoft.com/.default",
-          baseUrl: graphBaseUrl, // Use the dynamically determined base URL
-        },
-        azure: {
-          scope: "https://management.azure.com/.default",
-          baseUrl: "https://management.azure.com",
+      // --- Microsoft Graph Logic ---
+      if (apiType === 'graph') {
+        if (!graphClient) {
+          throw new Error("Graph client not initialized");
         }
-      };
+        determinedUrl = `https://graph.microsoft.com/${graphApiVersion}`; // For error reporting
 
-      const currentApi = apiConfig[apiType];
+        // Construct the request using the Graph SDK client
+        let request = graphClient.api(path).version(graphApiVersion);
 
-      // Acquire token using the initialized MSAL application
-      const tokenResponse = await msalApp.acquireTokenByClientCredential({
-        scopes: [currentApi.scope]
-      });
+        // Add query parameters if provided and not empty
+        if (queryParams && Object.keys(queryParams).length > 0) {
+          // Use query() method for SDK with the original queryParams object
+          request = request.query(queryParams);
+        }
 
-      if (!tokenResponse || !tokenResponse.accessToken) {
-        throw new Error("Failed to acquire access token");
+        // Handle different methods
+        switch (method.toLowerCase()) {
+          case 'get':
+            if (fetchAll) {
+              logger.info(`Fetching all pages for Graph path: ${path}`);
+              const allItems: any[] = [];
+              // Callback function to process each page
+              const callback = (item: any) => {
+                allItems.push(item);
+                return true; // Return true to continue iteration
+              };
+
+              // Create a PageIterator
+              const response: PageCollection = await request.get();
+              const pageIterator = new PageIterator(graphClient, response, callback);
+
+              // Iterate over all pages
+              await pageIterator.iterate();
+              responseData = { allValues: allItems };
+              logger.info(`Finished fetching all Graph pages. Total items: ${allItems.length}`);
+
+            } else {
+              logger.info(`Fetching single page for Graph path: ${path}`);
+              responseData = await request.get();
+            }
+            break;
+          case 'post':
+            responseData = await request.post(body ?? {});
+            break;
+          case 'put':
+            responseData = await request.put(body ?? {});
+            break;
+          case 'patch':
+            responseData = await request.patch(body ?? {});
+            break;
+          case 'delete':
+            responseData = await request.delete(); // Delete often returns no body or 204
+            // Handle potential 204 No Content response
+            if (responseData === undefined || responseData === null) {
+              responseData = { status: "Success (No Content)" };
+            }
+            break;
+          default:
+            throw new Error(`Unsupported method: ${method}`);
+        }
       }
+      // --- Azure Resource Management Logic (using direct fetch) ---
+      else { // apiType === 'azure'
+        if (!azureCredential) {
+          throw new Error("Azure credential not initialized");
+        }
+        determinedUrl = "https://management.azure.com"; // For error reporting
 
-      // Construct the URL
-      let url = currentApi.baseUrl;
-      
-      // Special handling for Azure Resource Management
-      if (apiType === 'azure') {
+        // Acquire token for Azure RM
+        const tokenResponse = await azureCredential.getToken("https://management.azure.com/.default");
+        if (!tokenResponse || !tokenResponse.token) {
+          throw new Error("Failed to acquire Azure access token");
+        }
+
+        // Construct the URL (similar to previous implementation)
+        let url = determinedUrl;
         if (subscriptionId) {
           url += `/subscriptions/${subscriptionId}`;
         }
-        
-        // Append path
         url += path;
 
-        // Add API version (required for Azure)
         if (!apiVersion) {
           throw new Error("API version is required for Azure Resource Management queries");
         }
-
-        const urlParams = new URLSearchParams({
-          'api-version': apiVersion
-        });
-
-        // Add additional query parameters if provided
+        const urlParams = new URLSearchParams({ 'api-version': apiVersion });
         if (queryParams) {
           for (const [key, value] of Object.entries(queryParams)) {
-            // Ensure key and value are treated as strings
-            urlParams.append(String(key), String(value)); 
+            urlParams.append(String(key), String(value));
           }
         }
-
         url += `?${urlParams.toString()}`;
-      } 
-      // Handling for Microsoft Graph
-      else {
-        url += path;
 
-        // Add query parameters for Graph
-        if (queryParams && Object.keys(queryParams).length > 0) {
-          const searchParams = new URLSearchParams();
-          for (const [key, value] of Object.entries(queryParams)) {
-             // Ensure key and value are treated as strings
-            searchParams.append(String(key), String(value));
-          }
-          url += `?${searchParams.toString()}`;
+        // Prepare request options
+        const headers: Record<string, string> = {
+          'Authorization': `Bearer ${tokenResponse.token}`,
+          'Content-Type': 'application/json'
+        };
+        const requestOptions: RequestInit = {
+          method: method.toUpperCase(),
+          headers: headers
+        };
+        if (["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
+          requestOptions.body = body ? JSON.stringify(body) : JSON.stringify({});
         }
-      }
 
-      // Prepare request options
-      const headers: Record<string, string> = {
-        'Authorization': `Bearer ${tokenResponse.accessToken}`,
-        'Content-Type': 'application/json'
-      };
-      
-      // Special headers for Graph consistency
-      if (apiType === 'graph') {
-        headers['ConsistencyLevel'] = 'eventual';
-      }
+        // --- Pagination Logic for Azure RM (Manual Fetch) ---
+        if (fetchAll && method === 'get') {
+          logger.info(`Fetching all pages for Azure RM starting from: ${url}`);
+          let allValues: any[] = [];
+          let currentUrl: string | null = url;
 
-      const requestOptions: RequestInit = {
-        method: method.toUpperCase(),
-        headers: headers
-      };
-
-      // Add body for methods that support it
-      if (["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
-        requestOptions.body = body ? 
-          (typeof body === 'string' ? body : JSON.stringify(body)) : 
-          JSON.stringify({});
-      }
-
-       // --- Pagination Logic ---
-       let responseData: any;
- 
-       if (fetchAll && method === 'get') { // Only paginate GET requests
-         logger.info(`Fetching all pages starting from: ${url}`);
-         let allValues: any[] = []; // Initialize results array
-         let currentUrl: string | null = url; // URL for the current page
- 
-         while (currentUrl) {
-           logger.info(`Fetching page: ${currentUrl}`);
-           
-           // Re-acquire token INSIDE the loop for each page request
-           const currentTokenResponse = await msalApp.acquireTokenByClientCredential({
-             scopes: [currentApi.scope]
-           });
-           if (!currentTokenResponse || !currentTokenResponse.accessToken) {
-             throw new Error("Failed to acquire access token during pagination");
-           }
- 
-           // Prepare headers INSIDE the loop for each page request
-           const currentHeaders: Record<string, string> = {
-             'Authorization': `Bearer ${currentTokenResponse.accessToken}`,
-             'Content-Type': 'application/json'
-           };
-           if (apiType === 'graph') {
-             currentHeaders['ConsistencyLevel'] = 'eventual';
-             currentHeaders['Accept-Language'] = 'en-US'; // Ensure this is included
-           }
-           const currentPageRequestOptions: RequestInit = {
-             method: 'GET', // Pagination is always GET
-             headers: currentHeaders
-           };
- 
-           // Fetch the current page
-           const pageResponse = await fetch(currentUrl, currentPageRequestOptions); 
-           const pageText = await pageResponse.text();
-           let pageData: any;
-
-           try {
-             pageData = pageText ? JSON.parse(pageText) : {};
-           } catch (e) {
-             logger.error(`Failed to parse JSON from page: ${currentUrl}`, pageText); // Use currentUrl
-             pageData = { rawResponse: pageText }; // Store raw text on parse error
-           }
- 
-           if (!pageResponse.ok) {
-             logger.error(`API error on page ${currentUrl}:`, pageData); // Use currentUrl
-             // Throw error, stopping pagination
-             throw new Error(`API error (${pageResponse.status}) during pagination on ${currentUrl}: ${JSON.stringify(pageData)}`); // Use currentUrl
-           }
- 
-           if (pageData.value && Array.isArray(pageData.value)) {
-             allValues = allValues.concat(pageData.value);
-           } else {
-              // If the first page doesn't have 'value', treat it as a single result
-              if (currentUrl === url && !pageData['@odata.nextLink']) { // Use currentUrl
-                  allValues.push(pageData); // Add the whole response if it's not a collection
-              }
-               // Otherwise, log a warning if subsequent pages lack 'value'
-               else if (currentUrl !== url) { // Use currentUrl
-                   logger.info(`[Warning] Response from ${currentUrl} did not contain a 'value' array.`); // Use currentUrl
-               }
+          while (currentUrl) {
+            logger.info(`Fetching Azure RM page: ${currentUrl}`);
+            // Re-acquire token for each page (Azure tokens might expire)
+            const currentPageTokenResponse = await azureCredential.getToken("https://management.azure.com/.default");
+            if (!currentPageTokenResponse || !currentPageTokenResponse.token) {
+              throw new Error("Failed to acquire Azure access token during pagination");
             }
- 
-           currentUrl = pageData['@odata.nextLink'] || null; // Update currentUrl for the next iteration
-        }
-        
-         // Final response data structure for fetchAll
-         responseData = { allValues: allValues }; 
-         logger.info(`Finished fetching all pages. Total items: ${allValues.length}`);
- 
-       } else {
-         // Original single-page fetch logic
-         logger.info(`Fetching single page: ${url}`);
-         // Use the original requestOptions prepared outside the loop
-         const apiResponse = await fetch(url, requestOptions); 
-         const responseText = await apiResponse.text();
-         
-         try {
-          responseData = responseText ? JSON.parse(responseText) : {};
-        } catch (e) {
-          logger.error(`Failed to parse JSON from single page: ${url}`, responseText);
-          responseData = { rawResponse: responseText };
-        }
+            const currentPageHeaders = { ...headers, 'Authorization': `Bearer ${currentPageTokenResponse.token}` };
+            const currentPageRequestOptions: RequestInit = { method: 'GET', headers: currentPageHeaders };
 
-        if (!apiResponse.ok) {
-          logger.error(`API error for ${method} ${path}:`, responseData);
-          throw new Error(`API error (${apiResponse.status}): ${JSON.stringify(responseData)}`);
+            const pageResponse = await fetch(currentUrl, currentPageRequestOptions);
+            const pageText = await pageResponse.text();
+            let pageData: any;
+            try {
+              pageData = pageText ? JSON.parse(pageText) : {};
+            } catch (e) {
+              logger.error(`Failed to parse JSON from Azure RM page: ${currentUrl}`, pageText);
+              pageData = { rawResponse: pageText };
+            }
+
+            if (!pageResponse.ok) {
+              logger.error(`API error on Azure RM page ${currentUrl}:`, pageData);
+              throw new Error(`API error (${pageResponse.status}) during Azure RM pagination on ${currentUrl}: ${JSON.stringify(pageData)}`);
+            }
+
+            if (pageData.value && Array.isArray(pageData.value)) {
+              allValues = allValues.concat(pageData.value);
+            } else if (currentUrl === url && !pageData.nextLink) {
+              allValues.push(pageData);
+            } else if (currentUrl !== url) {
+              logger.info(`[Warning] Azure RM response from ${currentUrl} did not contain a 'value' array.`);
+            }
+            currentUrl = pageData.nextLink || null; // Azure uses nextLink
+          }
+          responseData = { allValues: allValues };
+          logger.info(`Finished fetching all Azure RM pages. Total items: ${allValues.length}`);
+        } else {
+          // Single page fetch for Azure RM
+          logger.info(`Fetching single page for Azure RM: ${url}`);
+          const apiResponse = await fetch(url, requestOptions);
+          const responseText = await apiResponse.text();
+          try {
+            responseData = responseText ? JSON.parse(responseText) : {};
+          } catch (e) {
+            logger.error(`Failed to parse JSON from single Azure RM page: ${url}`, responseText);
+            responseData = { rawResponse: responseText };
+          }
+          if (!apiResponse.ok) {
+            logger.error(`API error for Azure RM ${method} ${path}:`, responseData);
+            throw new Error(`API error (${apiResponse.status}) for Azure RM: ${JSON.stringify(responseData)}`);
+          }
         }
       }
-       // --- End Pagination Logic ---
 
-       // responseData is now populated either with single page or allValues object
- 
-       // Construct result text based on whether all pages were fetched
-       let resultText = `Result for ${apiType} API (${graphApiVersion}) - ${method} ${path}:\n\n`;
- 
-       if (fetchAll && method === 'get' && responseData.allValues) {
-          // Use the structure containing allValues
-          resultText += JSON.stringify(responseData, null, 2); // Stringify the object containing allValues
-       } else {
-          // Original single-page response formatting
-          resultText += JSON.stringify(responseData, null, 2);
-          // Add note if more pages are available and we didn't fetch all
-          if (!fetchAll && responseData['@odata.nextLink']) {
+      // --- Format and Return Result ---
+      let resultText = `Result for ${apiType} API (${apiType === 'graph' ? graphApiVersion : apiVersion}) - ${method} ${path}:\n\n`;
+      resultText += JSON.stringify(responseData, null, 2);
+
+      // Add pagination note if applicable (only for single page GET)
+      if (!fetchAll && method === 'get') {
+         const nextLinkKey = apiType === 'graph' ? '@odata.nextLink' : 'nextLink';
+         if (responseData[nextLinkKey]) {
              resultText += `\n\nNote: More results are available. To retrieve all pages, add the parameter 'fetchAll: true' to your request.`;
-          }
-       }
-       
-       return {
-        content: [
-          {
-            type: "text" as const,
-            text: resultText,
-          },
-        ],
+         }
+      }
+
+      return {
+        content: [{ type: "text" as const, text: resultText }],
       };
 
-    } catch (error) {
-      logger.error("Error in Multi-Microsoft API tool:", error);
-      // Determine the URL that was attempted
-      determinedUrl = apiType === 'graph' 
-        ? `https://graph.microsoft.com/${graphApiVersion}` // Use the provided version
-        : "https://management.azure.com"; 
+    } catch (error: any) {
+      logger.error(`Error in Lokka-Microsoft tool (apiType: ${apiType}):`, error);
+      // Try to determine the base URL even in case of error
+      if (!determinedUrl) {
+         determinedUrl = apiType === 'graph'
+           ? `https://graph.microsoft.com/${graphApiVersion}`
+           : "https://management.azure.com";
+      }
+      // Include error body if available from Graph SDK error
+      const errorBody = error.body ? (typeof error.body === 'string' ? error.body : JSON.stringify(error.body)) : 'N/A';
       return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              error: error instanceof Error ? error.message : String(error),
-              attemptedBaseUrl: determinedUrl // Add the URL here
-            }),
-          },
-        ],
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            error: error instanceof Error ? error.message : String(error),
+            statusCode: error.statusCode || 'N/A', // Include status code if available from SDK error
+            errorBody: errorBody,
+            attemptedBaseUrl: determinedUrl
+          }),
+        }],
         isError: true
       };
     }
@@ -301,19 +280,24 @@ async function main() {
   const clientSecret = process.env.CLIENT_SECRET;
 
   if (!tenantId || !clientId || !clientSecret) {
+    logger.error("Missing required environment variables: TENANT_ID, CLIENT_ID, or CLIENT_SECRET");
     throw new Error("Missing required environment variables: TENANT_ID, CLIENT_ID, or CLIENT_SECRET");
   }
 
-  // Initialize MSAL application once
-  const msalConfig = {
-    auth: {
-      clientId,
-      clientSecret,
-      authority: `https://login.microsoftonline.com/${tenantId}`,
-    }
-  };
+  // Initialize Azure Credential
+  azureCredential = new ClientSecretCredential(tenantId, clientId, clientSecret);
 
-  msalApp = new ConfidentialClientApplication(msalConfig);
+  // Initialize Graph Authentication Provider
+  const authProvider = new TokenCredentialAuthenticationProvider(azureCredential, {
+    scopes: ["https://graph.microsoft.com/.default"],
+  });
+
+  // Initialize Graph Client
+  graphClient = Client.initWithMiddleware({
+    authProvider: authProvider,
+  });
+
+  logger.info("Graph Client and Azure Credential initialized successfully.");
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

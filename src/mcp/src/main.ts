@@ -27,18 +27,43 @@ server.tool(
     subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)."),
     queryParams: z.record(z.string()).optional().describe("Query parameters for the request"),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
+    graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
   },
-  async ({ apiType, path, method, apiVersion, subscriptionId, queryParams, body }) => {
+  async ({ 
+    apiType, 
+    path, 
+    method, 
+    apiVersion, 
+    subscriptionId, 
+    queryParams, 
+    body, 
+    graphApiVersion 
+  }: { 
+    apiType: "graph" | "azure"; 
+    path: string; 
+    method: "get" | "post" | "put" | "patch" | "delete"; 
+    apiVersion?: string; 
+    subscriptionId?: string; 
+    queryParams?: Record<string, string>; 
+    body?: any; 
+    graphApiVersion: "v1.0" | "beta"; 
+  }) => {
+    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}`); // Log input params
+    let graphBaseUrl: string | undefined; // Declare with wider scope
+    let determinedUrl: string | undefined; // Declare with wider scope
     try {
       if (!msalApp) {
         throw new Error("MSAL application not initialized");
       }
 
       // Determine correct scope and base URL based on API type
-      const apiConfig = {
+      const graphBaseUrl = `https://graph.microsoft.com/${graphApiVersion}`; // Use the parameter directly
+      logger.info(`Using graphBaseUrl: ${graphBaseUrl} based on graphApiVersion: ${graphApiVersion}`); // Log determined URL
+
+      const apiConfig = { // Keep apiConfig local to try block
         graph: {
           scope: "https://graph.microsoft.com/.default",
-          baseUrl: "https://graph.microsoft.com/v1.0",
+          baseUrl: graphBaseUrl, // Use the dynamically determined base URL
         },
         azure: {
           scope: "https://management.azure.com/.default",
@@ -81,7 +106,8 @@ server.tool(
         // Add additional query parameters if provided
         if (queryParams) {
           for (const [key, value] of Object.entries(queryParams)) {
-            urlParams.append(key, value);
+            // Ensure key and value are treated as strings
+            urlParams.append(String(key), String(value)); 
           }
         }
 
@@ -95,7 +121,8 @@ server.tool(
         if (queryParams && Object.keys(queryParams).length > 0) {
           const searchParams = new URLSearchParams();
           for (const [key, value] of Object.entries(queryParams)) {
-            searchParams.append(key, value);
+             // Ensure key and value are treated as strings
+            searchParams.append(String(key), String(value));
           }
           url += `?${searchParams.toString()}`;
         }
@@ -107,7 +134,7 @@ server.tool(
         'Content-Type': 'application/json'
       };
       
-      // Special header for Graph consistency
+      // Special headers for Graph consistency
       if (apiType === 'graph') {
         headers['ConsistencyLevel'] = 'eventual';
       }
@@ -144,7 +171,8 @@ server.tool(
         throw new Error(`API error (${apiResponse.status}): ${JSON.stringify(responseData)}`);
       }
 
-      let resultText = `Result for ${apiType} API - ${method} ${path}:\n\n`;
+      // Include the determined base URL and version in the response for debugging
+      let resultText = `Result for ${apiType} API (${graphApiVersion}) - ${method} ${path}:\n\n`; 
       resultText += JSON.stringify(responseData, null, 2);
 
       return {
@@ -158,12 +186,17 @@ server.tool(
 
     } catch (error) {
       logger.error("Error in Multi-Microsoft API tool:", error);
+      // Determine the URL that was attempted
+      determinedUrl = apiType === 'graph' 
+        ? `https://graph.microsoft.com/${graphApiVersion}` // Use the provided version
+        : "https://management.azure.com"; 
       return {
         content: [
           {
             type: "text",
             text: JSON.stringify({
               error: error instanceof Error ? error.message : String(error),
+              attemptedBaseUrl: determinedUrl // Add the URL here
             }),
           },
         ],

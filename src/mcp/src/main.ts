@@ -29,36 +29,36 @@ server.tool(
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
     graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
   },
-  async ({ 
-    apiType, 
-    path, 
-    method, 
-    apiVersion, 
-    subscriptionId, 
-    queryParams, 
-    body, 
-    graphApiVersion 
-  }: { 
-    apiType: "graph" | "azure"; 
-    path: string; 
-    method: "get" | "post" | "put" | "patch" | "delete"; 
-    apiVersion?: string; 
-    subscriptionId?: string; 
-    queryParams?: Record<string, string>; 
-    body?: any; 
-    graphApiVersion: "v1.0" | "beta"; 
+  async ({
+    apiType,
+    path,
+    method,
+    apiVersion,
+    subscriptionId,
+    queryParams,
+    body,
+    graphApiVersion
+  }: {
+    apiType: "graph" | "azure";
+    path: string;
+    method: "get" | "post" | "put" | "patch" | "delete";
+    apiVersion?: string;
+    subscriptionId?: string;
+    queryParams?: Record<string, string>;
+    body?: any;
+    graphApiVersion: "v1.0" | "beta";
   }) => {
     logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}`); // Log input params
-    let graphBaseUrl: string | undefined; // Declare with wider scope
-    let determinedUrl: string | undefined; // Declare with wider scope
+
     try {
       if (!msalApp) {
         throw new Error("MSAL application not initialized");
       }
 
       // Determine correct scope and base URL based on API type
-      const graphBaseUrl = `https://graph.microsoft.com/${graphApiVersion}`; // Use the parameter directly
-      logger.info(`Using graphBaseUrl: ${graphBaseUrl} based on graphApiVersion: ${graphApiVersion}`); // Log determined URL
+      // Declare graphBaseUrl within the try block as its scope is limited here
+      const graphBaseUrl = `https://graph.microsoft.com/${graphApiVersion}`;
+      logger.info(`Using graphBaseUrl: ${graphBaseUrl} based on graphApiVersion: ${graphApiVersion}`);
 
       const apiConfig = { // Keep apiConfig local to try block
         graph: {
@@ -84,13 +84,13 @@ server.tool(
 
       // Construct the URL
       let url = currentApi.baseUrl;
-      
+
       // Special handling for Azure Resource Management
       if (apiType === 'azure') {
         if (subscriptionId) {
           url += `/subscriptions/${subscriptionId}`;
         }
-        
+
         // Append path
         url += path;
 
@@ -107,12 +107,12 @@ server.tool(
         if (queryParams) {
           for (const [key, value] of Object.entries(queryParams)) {
             // Ensure key and value are treated as strings
-            urlParams.append(String(key), String(value)); 
+            urlParams.append(String(key), String(value));
           }
         }
 
         url += `?${urlParams.toString()}`;
-      } 
+      }
       // Handling for Microsoft Graph
       else {
         url += path;
@@ -133,7 +133,7 @@ server.tool(
         'Authorization': `Bearer ${tokenResponse.accessToken}`,
         'Content-Type': 'application/json'
       };
-      
+
       // Special headers for Graph consistency
       if (apiType === 'graph') {
         headers['ConsistencyLevel'] = 'eventual';
@@ -146,8 +146,8 @@ server.tool(
 
       // Add body for methods that support it
       if (["POST", "PUT", "PATCH"].includes(method.toUpperCase())) {
-        requestOptions.body = body ? 
-          (typeof body === 'string' ? body : JSON.stringify(body)) : 
+        requestOptions.body = body ?
+          (typeof body === 'string' ? body : JSON.stringify(body)) :
           JSON.stringify({});
       }
 
@@ -157,7 +157,7 @@ server.tool(
       // Handle response
       let responseData: any;
       const responseText = await apiResponse.text();
-      
+
       try {
         // Try to parse as JSON
         responseData = responseText ? JSON.parse(responseText) : {};
@@ -172,7 +172,7 @@ server.tool(
       }
 
       // Include the determined base URL and version in the response for debugging
-      let resultText = `Result for ${apiType} API (${graphApiVersion}) - ${method} ${path}:\n\n`; 
+      let resultText = `Result for ${apiType} API (${graphApiVersion}) - ${method} ${path}:\n\n`;
       resultText += JSON.stringify(responseData, null, 2);
 
       return {
@@ -186,10 +186,11 @@ server.tool(
 
     } catch (error) {
       logger.error("Error in Multi-Microsoft API tool:", error);
-      // Determine the URL that was attempted
-      determinedUrl = apiType === 'graph' 
+      // Determine the URL that was attempted (declare determinedUrl within the catch block)
+      // Simplified assignment as suggested
+      const determinedUrl = apiType === 'graph'
         ? `https://graph.microsoft.com/${graphApiVersion}` // Use the provided version
-        : "https://management.azure.com"; 
+        : "https://management.azure.com";
       return {
         content: [
           {

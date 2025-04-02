@@ -8,7 +8,7 @@ import { logger } from "./logger.js";
 // Create server instance
 const server = new McpServer({
   name: "Lokka-Microsoft",
-  version: "0.1.9",
+  version: "0.1.8",
 });
 
 logger.info("Starting Lokka Multi-Microsoft API MCP Server");

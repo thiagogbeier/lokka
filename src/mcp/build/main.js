@@ -7,14 +7,14 @@ import { logger } from "./logger.js";
 // Create server instance
 const server = new McpServer({
     name: "Lokka-Microsoft",
-    version: "0.1.9",
+    version: "0.1.8",
 });
 logger.info("Starting Lokka Multi-Microsoft API MCP Server");
 // Initialize MSAL application outside the tool function
 let msalApp = null;
-server.tool("Lokka-MicrosoftAPIs", "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management.", {
+server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management.", {
     apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management."),
-    path: z.string().describe("API-specific path to query"),
+    path: z.string().describe("The Azure or Graph API URL path to call (e.g. '/users', '/groups', '/subscriptions')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
     apiVersion: z.string().optional().describe("Azure Resource Management API version (required for apiType Azure)"),
     subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)."),

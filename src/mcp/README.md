@@ -1,6 +1,6 @@
-# Lokka - MCP Server for Microsoft Graph
+# Lokka - MCP Server for Azure and Microsoft Graph
 
-Lokka is an MCP server for querying and managing your Microsoft 365 tenant using the Microsoft Graph API. It acts as a bridge between the Microsoft Graph API and any compatible MCP client, allowing you to interact with your Microsoft 365 tenant using natural language queries.
+Lokka is an MCP server for querying and managing your Azure and Microsoft 365 tenants using the Microsoft Azure/Graph APIs. It acts as a bridge between the Microsoft APIs and any compatible MCP client, allowing you to interact with your Azure and Microsoft 365 tenant using natural language queries.
 
 ## Sample queries
 
@@ -12,7 +12,7 @@ Here are some examples of queries you can use with Lokka.
 
 ## What is Lokka?
 
-Lokka is designed to be used with any compatible MCP client, such as Claude Desktop, Cursor, Goose, or any other AI model and client that support the Model Context Protocol. It provides a simple and intuitive way to manage your Microsoft 365 tenant using natural language queries.
+Lokka is designed to be used with any compatible MCP client, such as Claude Desktop, Cursor, Goose, or any other AI model and client that support the Model Context Protocol. It provides a simple and intuitive way to manage your Azure and Microsoft 365 tenant using natural language queries.
 
 Follow the guide at [Lokka.dev](https://lokka.dev) to get started with Lokka and learn how to use it with your favorite AI model and chat client.
 
@@ -23,7 +23,7 @@ Follow the guide at [Lokka.dev](https://lokka.dev) to get started with Lokka and
 ```json
 {
   "mcpServers": {
-    "Lokka-Microsoft-Graph": {
+    "Lokka-Microsoft": {
       "command": "npx",
       "args": ["-y", "@merill/lokka"],
       "env": {

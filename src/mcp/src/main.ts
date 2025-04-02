@@ -20,7 +20,8 @@ server.tool(
   "Lokka-MicrosoftGraph",
   "A tool to call Microsoft Graph API. It supports querying a Microsoft 365 tenant using the Graph API. Updates are also supported if permissions are provided.",
   {
-    path: z.string().describe("The Graph API URL path to call (e.g. '/me', '/users')"),
+    apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management."),
+    path: z.string().describe("The Azure or Graph API URL path to call (e.g. '/users', '/groups', '/subscriptions')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
     queryParams: z.record(z.string()).optional().describe("Query parameters like $filter, $select, etc. All parameters are strings."),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),

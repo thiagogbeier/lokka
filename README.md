@@ -2,19 +2,20 @@
 
 [![npm version](https://badge.fury.io/js/@merill%2Flokka.svg)](https://badge.fury.io/js/@merill%2Flokka)
 
-Lokka is a model-context-protocol server for the Microsoft Graph API that allows you to query and managing your Microsoft tenant with AI.
+Lokka is a model-context-protocol server for the Microsoft Graph and Azure RM APIs that allows you to query and managing your Azure and Microsoft 365 tenants with AI.
 
 <img src="https://github.com/merill/lokka/blob/main/assets/lokka-demo-1.gif?raw=true" alt="Lokka Demo - user create demo" width="500"/>
 
 Please see [Lokka.dev](https://lokka.dev) for how to use Lokka with your favorite AI model and chat client.
 
-Lokka lets you use Claude Desktop, or any MCP Client, to use natural language to accomplish things in your Microsoft 365 tenant through the Microsoft Graph API.
+Lokka lets you use Claude Desktop, or any MCP Client, to use natural language to accomplish things in your Azure and Microsoft 365 tenant through the Microsoft APIs.
 
 e.g.:
 
 - `Create a new security group called 'Sales and HR' with a dynamic rule based on the department attribute.` 
 - `Find all the conditional access policies that haven't excluded the emergency access account`
 - `Show me all the Intune device configuration policies assigned to the 'Call center' group`
+- `What was the most expensive service in Azure last month?`
 
 ![How does Lokka work?](https://github.com/merill/lokka/blob/main/website/docs/assets/how-does-lokka-mcp-server-work.png?raw=true)
 
@@ -30,15 +31,17 @@ See the docs for more information on how to install and configure Lokka.
 
 ### Tools
 
-1. `Lokka-MicrosoftGraph`
-   - Call Microsoft Graph API. Supports querying a Microsoft 365 tenant using the Graph API. Updates are also supported if permissions are provided.
+1. `Lokka-Microsoft`
+   - Call Microsoft Graph & Azure APIs. Supports querying Azure and Microsoft 365 tenants. Updates are also supported if permissions are provided.
    - Input:
-     - `path` (string): The Graph API URL path to call (e.g. '/me', '/users', '/groups')
+     - `apiType` (string): Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management.
+     - `path` (string): The Azure or Graph API URL path to call (e.g. '/users', '/groups', '/subscriptions').
      - `method` (string): HTTP method to use (e.g., get, post, put, patch, delete)
+     - `apiVersion` (string): Azure Resource Management API version (required for apiType Azure)
+     - `subscriptionId` (string): Azure Subscription ID (for Azure Resource Management).
      - `queryParams` (string): Array of query parameters like $filter, $select, etc. All parameters are strings.
      - `body` (JSON): The request body (for POST, PUT, PATCH)
-   - Returns: Results from the Graph API call.
-
+   - Returns: Results from the Azure or Graph API call.
 
 ### Environment Variables
 
@@ -58,7 +61,7 @@ To use this server with the Claude Desktop app, add the following configuration 
 ```json
 {
   "mcpServers": {
-    "Lokka-Microsoft-Graph": {
+    "Lokka-Microsoft": {
       "command": "npx",
       "args": ["-y", "@merill/lokka"],
       "env": {

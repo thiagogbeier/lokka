@@ -26,10 +26,10 @@ To get started with Lokka you need to
 - Enter a name for the application (e.g. `Lokka`)
 - Select **Register**
 - Select **API permissions** > **Add a permission**
-- Select **Microsoft Graph** > **Application permissions**
-- Search for each of the permissions and check the box next to each permission you want to allow.
-  - The agent will only be able to perform the actions based on the permissions you grant it.
-- Select **Add permissions**
+  - Select **Microsoft Graph** > **Application permissions**
+    - Search for each of the permissions and check the box next to each permission you want to allow.
+      - The agent will only be able to perform the actions based on the permissions you grant it.
+    - Select **Add permissions**
 - Select **Grant admin consent for [your organization]**
 - Select **Yes** to confirm
 
@@ -39,6 +39,21 @@ To get started with Lokka you need to
 - Enter a description for the secret (e.g. `Agent Config`)
 - Select **Add**
 - Copy the value of the secret, we will use this value in the agent configuration file.
+
+<details>
+<summary> (Optional) Grant access to Azure (click to expand)</summary>
+
+If you want to use the agent with Azure you need to grant access to the Azure resources.
+
+For each subscription you want to use the agent with, you need to assign at least the `Reader` role to the application.
+
+- Open [Azure portal](https://portal.azure.com) > **Subscriptions**
+- Select the subscription you want to grant access to
+- Select **Access control (IAM)** > **Add role assignment** > **Reader** > **Next**
+- Select **Select members** and search for the application you created earlier (e.g. `Lokka`)
+- Select **Review + assign** twice to confirm
+- Repeat this for each subscription you want to use the agent with.
+</details>
 
 ## 2️⃣ → Configure the agent
 
@@ -70,7 +85,7 @@ GitHub Copilot Agent in VS Code is a great option if you already have GitHub Cop
 ```json
 {
   "mcpServers": {
-    "Lokka-Microsoft-Graph": {
+    "Lokka-Microsoft": {
       "command": "npx",
       "args": ["-y", "@merill/lokka"],
       "env": {
@@ -96,6 +111,7 @@ GitHub Copilot Agent in VS Code is a great option if you already have GitHub Cop
   - `Get all users in my tenant`
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
+  - `How many VMs do I have in my subscription?` - Needs Reader permission to be granted to the Azure subscription
 
 </TabItem>
   <TabItem value="vscode" label="VS Code">
@@ -115,7 +131,7 @@ GitHub Copilot Agent in VS Code is a great option if you already have GitHub Cop
   - Tenant ID: `<tenant-id>`
   - Client ID: `<client-id>`
   - Client secret : `<client-secret>`
-  - Server ID: `Lokka-Microsoft-Graph`
+  - Server ID: `Lokka-Microsoft`
 - Where to save configuration: `User Settings`
 - This will open the `settings.json` file in VS Code.
 - `File` > `Save` to save the file.
@@ -127,7 +143,7 @@ Update the settings.json file and change the command and args parameters as show
 ```json {4,5}
 {
   "mcp.servers": {
-    "Lokka-Microsoft-Graph": {
+    "Lokka-Microsoft": {
       "command": "cmd",
       "args": ["/c", "npx", "-y", "@merill/lokka"],
       "env": {
@@ -142,7 +158,7 @@ Update the settings.json file and change the command and args parameters as show
 </details>
 
 - Open the Command Palette again and type `MCP` and select `MCP: List Servers`
-- Select `Lokka-Microsoft-Graph` from the list of servers.
+- Select `Lokka-Microsoft` from the list of servers.
 - Selet `Start Server`
 - This will start the Lokka server and you should see a message in the output window saying `Connection state: Running`.
 
@@ -154,10 +170,11 @@ Update the settings.json file and change the command and args parameters as show
   - Select `Agent` (if it is showing `Edit`)
   - Select `Claude 3.7 Sonnet` (if it is showing `GPT-40`)
 
-- Now you can start quering your Microsoft tenant using the Lokka agent tool.
+- Now you can start querying your Microsoft tenant using the Lokka agent tool.
 - Some sample queries you can try are:
   - `Get all users in my tenant`
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
+  
 </TabItem>
 </Tabs>

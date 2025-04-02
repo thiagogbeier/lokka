@@ -28,6 +28,7 @@ server.tool(
     queryParams: z.record(z.string()).optional().describe("Query parameters for the request"),
     body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
     graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
+    fetchAll: z.boolean().optional().default(false).describe("Set to true to automatically fetch all pages for list results (e.g., users, groups). Default is false."),
   },
   async ({ 
     apiType, 
@@ -37,7 +38,8 @@ server.tool(
     subscriptionId, 
     queryParams, 
     body, 
-    graphApiVersion 
+    graphApiVersion,
+    fetchAll
   }: { 
     apiType: "graph" | "azure"; 
     path: string; 
@@ -46,10 +48,10 @@ server.tool(
     subscriptionId?: string; 
     queryParams?: Record<string, string>; 
     body?: any; 
-    graphApiVersion: "v1.0" | "beta"; 
+    graphApiVersion: "v1.0" | "beta";
+    fetchAll: boolean; 
   }) => {
-    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}`); // Log input params
-    let graphBaseUrl: string | undefined; // Declare with wider scope
+    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}`); // Log input params
     let determinedUrl: string | undefined; // Declare with wider scope
     try {
       if (!msalApp) {
@@ -151,31 +153,116 @@ server.tool(
           JSON.stringify({});
       }
 
-      // Make API request
-      const apiResponse = await fetch(url, requestOptions);
+       // --- Pagination Logic ---
+       let responseData: any;
+ 
+       if (fetchAll && method === 'get') { // Only paginate GET requests
+         logger.info(`Fetching all pages starting from: ${url}`);
+         let allValues: any[] = []; // Initialize results array
+         let currentUrl: string | null = url; // URL for the current page
+ 
+         while (currentUrl) {
+           logger.info(`Fetching page: ${currentUrl}`);
+           
+           // Re-acquire token INSIDE the loop for each page request
+           const currentTokenResponse = await msalApp.acquireTokenByClientCredential({
+             scopes: [currentApi.scope]
+           });
+           if (!currentTokenResponse || !currentTokenResponse.accessToken) {
+             throw new Error("Failed to acquire access token during pagination");
+           }
+ 
+           // Prepare headers INSIDE the loop for each page request
+           const currentHeaders: Record<string, string> = {
+             'Authorization': `Bearer ${currentTokenResponse.accessToken}`,
+             'Content-Type': 'application/json'
+           };
+           if (apiType === 'graph') {
+             currentHeaders['ConsistencyLevel'] = 'eventual';
+             currentHeaders['Accept-Language'] = 'en-US'; // Ensure this is included
+           }
+           const currentPageRequestOptions: RequestInit = {
+             method: 'GET', // Pagination is always GET
+             headers: currentHeaders
+           };
+ 
+           // Fetch the current page
+           const pageResponse = await fetch(currentUrl, currentPageRequestOptions); 
+           const pageText = await pageResponse.text();
+           let pageData: any;
 
-      // Handle response
-      let responseData: any;
-      const responseText = await apiResponse.text();
-      
-      try {
-        // Try to parse as JSON
-        responseData = responseText ? JSON.parse(responseText) : {};
-      } catch (e) {
-        // If not JSON, use the raw text
-        responseData = { rawResponse: responseText };
+           try {
+             pageData = pageText ? JSON.parse(pageText) : {};
+           } catch (e) {
+             logger.error(`Failed to parse JSON from page: ${currentUrl}`, pageText); // Use currentUrl
+             pageData = { rawResponse: pageText }; // Store raw text on parse error
+           }
+ 
+           if (!pageResponse.ok) {
+             logger.error(`API error on page ${currentUrl}:`, pageData); // Use currentUrl
+             // Throw error, stopping pagination
+             throw new Error(`API error (${pageResponse.status}) during pagination on ${currentUrl}: ${JSON.stringify(pageData)}`); // Use currentUrl
+           }
+ 
+           if (pageData.value && Array.isArray(pageData.value)) {
+             allValues = allValues.concat(pageData.value);
+           } else {
+              // If the first page doesn't have 'value', treat it as a single result
+              if (currentUrl === url && !pageData['@odata.nextLink']) { // Use currentUrl
+                  allValues.push(pageData); // Add the whole response if it's not a collection
+              }
+               // Otherwise, log a warning if subsequent pages lack 'value'
+               else if (currentUrl !== url) { // Use currentUrl
+                   logger.info(`[Warning] Response from ${currentUrl} did not contain a 'value' array.`); // Use currentUrl
+               }
+            }
+ 
+           currentUrl = pageData['@odata.nextLink'] || null; // Update currentUrl for the next iteration
+        }
+        
+         // Final response data structure for fetchAll
+         responseData = { allValues: allValues }; 
+         logger.info(`Finished fetching all pages. Total items: ${allValues.length}`);
+ 
+       } else {
+         // Original single-page fetch logic
+         logger.info(`Fetching single page: ${url}`);
+         // Use the original requestOptions prepared outside the loop
+         const apiResponse = await fetch(url, requestOptions); 
+         const responseText = await apiResponse.text();
+         
+         try {
+          responseData = responseText ? JSON.parse(responseText) : {};
+        } catch (e) {
+          logger.error(`Failed to parse JSON from single page: ${url}`, responseText);
+          responseData = { rawResponse: responseText };
+        }
+
+        if (!apiResponse.ok) {
+          logger.error(`API error for ${method} ${path}:`, responseData);
+          throw new Error(`API error (${apiResponse.status}): ${JSON.stringify(responseData)}`);
+        }
       }
+       // --- End Pagination Logic ---
 
-      if (!apiResponse.ok) {
-        logger.error(`API error for ${method} ${path}:`, responseData);
-        throw new Error(`API error (${apiResponse.status}): ${JSON.stringify(responseData)}`);
-      }
-
-      // Include the determined base URL and version in the response for debugging
-      let resultText = `Result for ${apiType} API (${graphApiVersion}) - ${method} ${path}:\n\n`; 
-      resultText += JSON.stringify(responseData, null, 2);
-
-      return {
+       // responseData is now populated either with single page or allValues object
+ 
+       // Construct result text based on whether all pages were fetched
+       let resultText = `Result for ${apiType} API (${graphApiVersion}) - ${method} ${path}:\n\n`;
+ 
+       if (fetchAll && method === 'get' && responseData.allValues) {
+          // Use the structure containing allValues
+          resultText += JSON.stringify(responseData, null, 2); // Stringify the object containing allValues
+       } else {
+          // Original single-page response formatting
+          resultText += JSON.stringify(responseData, null, 2);
+          // Add note if more pages are available and we didn't fetch all
+          if (!fetchAll && responseData['@odata.nextLink']) {
+             resultText += `\n\nNote: More results are available. To retrieve all pages, add the parameter 'fetchAll: true' to your request.`;
+          }
+       }
+       
+       return {
         content: [
           {
             type: "text" as const,

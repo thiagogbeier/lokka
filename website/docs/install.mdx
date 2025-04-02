@@ -55,6 +55,21 @@ For each subscription you want to use the agent with, you need to assign at leas
 - Repeat this for each subscription you want to use the agent with.
 </details>
 
+<details>
+<summary> (Optional) Grant access to Azure (click to expand)</summary>
+
+If you want to use the agent with Azure you need to grant access to the Azure resources.
+
+For each subscription you want to use the agent with, you need to assign at least the `Reader` role to the application.
+
+- Open [Azure portal](https://portal.azure.com) > **Subscriptions**
+- Select the subscription you want to grant access to
+- Select **Access control (IAM)** > **Add role assignment** > **Reader** > **Next**
+- Select **Select members** and search for the application you created earlier (e.g. `Lokka`)
+- Select **Review + assign** twice to confirm
+- Repeat this for each subscription you want to use the agent with.
+</details>
+
 ## 2️⃣ → Configure the agent
 
 Now you can use the Lokka agent tool with any compatible MCP client and LLM combo.
@@ -175,6 +190,6 @@ Update the settings.json file and change the command and args parameters as show
   - `Get all users in my tenant`
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
-  
+  - `How many VMs do I have in my subscription?` - Needs Reader permission to be granted to the Azure subscription
 </TabItem>
 </Tabs>

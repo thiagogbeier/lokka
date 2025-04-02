@@ -179,7 +179,6 @@ server.tool(
            };
            if (apiType === 'graph') {
              currentHeaders['ConsistencyLevel'] = 'eventual';
-             currentHeaders['Accept-Language'] = 'en-US'; // Ensure this is included
            }
            const currentPageRequestOptions: RequestInit = {
              method: 'GET', // Pagination is always GET

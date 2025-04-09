@@ -18,18 +18,19 @@ logger.info("Starting Lokka Multi-Microsoft API MCP Server (v0.1.9 - Refactored 
 // Initialize Graph Client and Azure Auth Credential outside the tool function
 let graphClient = null;
 let azureCredential = null; // For Azure RM calls
-server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management.", {
+server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management. IMPORTANT: For Graph API GET requests using advanced query parameters ($filter, $count, $search, $orderby), you are ADVISED to set 'consistencyLevel: \"eventual\"'.", {
     apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management."),
     path: z.string().describe("The Azure or Graph API URL path to call (e.g. '/users', '/groups', '/subscriptions')"),
     method: z.enum(["get", "post", "put", "patch", "delete"]).describe("HTTP method to use"),
     apiVersion: z.string().optional().describe("Azure Resource Management API version (required for apiType Azure)"),
     subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)."),
     queryParams: z.record(z.string()).optional().describe("Query parameters for the request"),
-    body: z.any().optional().describe("The request body (for POST, PUT, PATCH)"),
+    body: z.unknown().optional().describe("The request body (for POST, PUT, PATCH)"),
     graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
     fetchAll: z.boolean().optional().default(false).describe("Set to true to automatically fetch all pages for list results (e.g., users, groups). Default is false."),
-}, async ({ apiType, path, method, apiVersion, subscriptionId, queryParams, body, graphApiVersion, fetchAll }) => {
-    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}`);
+    consistencyLevel: z.string().optional().describe("Graph API ConsistencyLevel header. ADVISED to be set to 'eventual' for Graph GET requests using advanced query parameters ($filter, $count, $search, $orderby)."),
+}, async ({ apiType, path, method, apiVersion, subscriptionId, queryParams, body, graphApiVersion, fetchAll, consistencyLevel }) => {
+    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}, consistencyLevel=${consistencyLevel}`);
     let determinedUrl;
     try {
         let responseData;
@@ -43,26 +44,36 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
             let request = graphClient.api(path).version(graphApiVersion);
             // Add query parameters if provided and not empty
             if (queryParams && Object.keys(queryParams).length > 0) {
-                // Use query() method for SDK with the original queryParams object
                 request = request.query(queryParams);
+            }
+            // Add ConsistencyLevel header if provided
+            if (consistencyLevel) {
+                request = request.header('ConsistencyLevel', consistencyLevel);
+                logger.info(`Added ConsistencyLevel header: ${consistencyLevel}`);
             }
             // Handle different methods
             switch (method.toLowerCase()) {
                 case 'get':
                     if (fetchAll) {
                         logger.info(`Fetching all pages for Graph path: ${path}`);
-                        const allItems = [];
-                        // Callback function to process each page
+                        // Fetch the first page to get context and initial data
+                        const firstPageResponse = await request.get();
+                        const odataContext = firstPageResponse['@odata.context']; // Capture context from first page
+                        let allItems = firstPageResponse.value || []; // Initialize with first page's items
+                        // Callback function to process subsequent pages
                         const callback = (item) => {
                             allItems.push(item);
                             return true; // Return true to continue iteration
                         };
-                        // Create a PageIterator
-                        const response = await request.get();
-                        const pageIterator = new PageIterator(graphClient, response, callback);
-                        // Iterate over all pages
+                        // Create a PageIterator starting from the first response
+                        const pageIterator = new PageIterator(graphClient, firstPageResponse, callback);
+                        // Iterate over all remaining pages
                         await pageIterator.iterate();
-                        responseData = { allValues: allItems };
+                        // Construct final response with context and combined values under 'value' key
+                        responseData = {
+                            '@odata.context': odataContext,
+                            value: allItems
+                        };
                         logger.info(`Finished fetching all Graph pages. Total items: ${allItems.length}`);
                     }
                     else {
@@ -190,12 +201,13 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
             }
         }
         // --- Format and Return Result ---
+        // For all requests, format as text
         let resultText = `Result for ${apiType} API (${apiType === 'graph' ? graphApiVersion : apiVersion}) - ${method} ${path}:\n\n`;
-        resultText += JSON.stringify(responseData, null, 2);
+        resultText += JSON.stringify(responseData, null, 2); // responseData already contains the correct structure for fetchAll Graph case
         // Add pagination note if applicable (only for single page GET)
         if (!fetchAll && method === 'get') {
             const nextLinkKey = apiType === 'graph' ? '@odata.nextLink' : 'nextLink';
-            if (responseData[nextLinkKey]) {
+            if (responseData && responseData[nextLinkKey]) { // Added check for responseData existence
                 resultText += `\n\nNote: More results are available. To retrieve all pages, add the parameter 'fetchAll: true' to your request.`;
             }
         }
@@ -204,7 +216,7 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
         };
     }
     catch (error) {
-        logger.error(`Error in Lokka-Microsoft tool (apiType: ${apiType}):`, error);
+        logger.error(`Error in Lokka-Microsoft tool (apiType: ${apiType}, path: ${path}, method: ${method}):`, error); // Added more context to error log
         // Try to determine the base URL even in case of error
         if (!determinedUrl) {
             determinedUrl = apiType === 'graph'

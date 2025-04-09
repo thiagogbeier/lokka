@@ -24,7 +24,7 @@ e.g.:
 See the docs for more information on how to install and configure Lokka.
 
 - [Introduction](https://lokka.dev/)
-- [Install guide](https://lokka.dev/docs/installation)
+- [Install guide](https://lokka.dev/docs/install)
 - [Developer guide](https://lokka.dev/docs/developer-guide)
 
 ## Components

@@ -74,4 +74,4 @@ To use this server with the Claude Desktop app, add the following configuration 
 }
 ```
 
-Make sure to replace `<tenant-id>`, `<client-id>`, and `<client-secret>` with the actual values from your Microsoft Entra application. (See [Install Guide](https://lokka.dev/docs/installation) for more details on how to create an Entra app and configure the agent.)
+Make sure to replace `<tenant-id>`, `<client-id>`, and `<client-secret>` with the actual values from your Microsoft Entra application. (See [Install Guide](https://lokka.dev/docs/install) for more details on how to create an Entra app and configure the agent.)

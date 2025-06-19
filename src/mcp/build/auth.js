@@ -1,5 +1,7 @@
 import { ClientSecretCredential, InteractiveBrowserCredential, DeviceCodeCredential } from "@azure/identity";
 import { logger } from "./logger.js";
+// Constants
+const ONE_HOUR_IN_MS = 60 * 60 * 1000; // One hour in milliseconds
 // Simple authentication provider that works with Azure Identity TokenCredential
 export class TokenCredentialAuthProvider {
     credential;
@@ -18,12 +20,17 @@ export class ClientProvidedTokenCredential {
     accessToken;
     expiresOn;
     constructor(accessToken, expiresOn) {
-        this.accessToken = accessToken;
-        this.expiresOn = expiresOn || new Date(Date.now() + 3600000); // Default 1 hour
+        if (accessToken) {
+            this.accessToken = accessToken;
+            this.expiresOn = expiresOn || new Date(Date.now() + ONE_HOUR_IN_MS); // Default 1 hour
+        }
+        else {
+            this.expiresOn = new Date(0); // Set to epoch to indicate no valid token
+        }
     }
     async getToken(scopes) {
-        if (this.expiresOn <= new Date()) {
-            logger.error("Access token has expired");
+        if (!this.accessToken || !this.expiresOn || this.expiresOn <= new Date()) {
+            logger.error("Access token is not available or has expired");
             return null;
         }
         return {
@@ -33,14 +40,14 @@ export class ClientProvidedTokenCredential {
     }
     updateToken(accessToken, expiresOn) {
         this.accessToken = accessToken;
-        this.expiresOn = expiresOn || new Date(Date.now() + 3600000);
+        this.expiresOn = expiresOn || new Date(Date.now() + ONE_HOUR_IN_MS);
         logger.info("Access token updated successfully");
     }
     isExpired() {
-        return this.expiresOn <= new Date();
+        return !this.expiresOn || this.expiresOn <= new Date();
     }
     getExpirationTime() {
-        return this.expiresOn;
+        return this.expiresOn || new Date(0);
     }
 }
 export var AuthMode;
@@ -65,9 +72,6 @@ export class AuthManager {
                 this.credential = new ClientSecretCredential(this.config.tenantId, this.config.clientId, this.config.clientSecret);
                 break;
             case AuthMode.ClientProvidedToken:
-                if (!this.config.accessToken) {
-                    throw new Error("Client provided token mode requires accessToken");
-                }
                 logger.info("Initializing Client Provided Token authentication");
                 this.credential = new ClientProvidedTokenCredential(this.config.accessToken, this.config.expiresOn);
                 break;
@@ -116,6 +120,11 @@ export class AuthManager {
     async testCredential() {
         if (!this.credential) {
             throw new Error("Credential not initialized");
+        }
+        // Skip testing if ClientProvidedToken mode has no initial token
+        if (this.config.mode === AuthMode.ClientProvidedToken && !this.config.accessToken) {
+            logger.info("Skipping initial credential test as no token was provided at startup.");
+            return;
         }
         try {
             const token = await this.credential.getToken("https://graph.microsoft.com/.default");

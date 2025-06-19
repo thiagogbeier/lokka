@@ -2,6 +2,9 @@ import { AccessToken, TokenCredential, ClientSecretCredential, InteractiveBrowse
 import { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
 import { logger } from "./logger.js";
 
+// Constants
+const ONE_HOUR_IN_MS = 60 * 60 * 1000; // One hour in milliseconds
+
 // Simple authentication provider that works with Azure Identity TokenCredential
 export class TokenCredentialAuthProvider implements AuthenticationProvider {
   private credential: TokenCredential;
@@ -24,17 +27,19 @@ export interface TokenBasedCredential extends TokenCredential {
 }
 
 export class ClientProvidedTokenCredential implements TokenBasedCredential {
-  private accessToken: string;
-  private expiresOn: Date;
-
-  constructor(accessToken: string, expiresOn?: Date) {
-    this.accessToken = accessToken;
-    this.expiresOn = expiresOn || new Date(Date.now() + 3600000); // Default 1 hour
+  private accessToken: string | undefined;
+  private expiresOn: Date | undefined;
+  constructor(accessToken?: string, expiresOn?: Date) {
+    if (accessToken) {
+      this.accessToken = accessToken;
+      this.expiresOn = expiresOn || new Date(Date.now() + ONE_HOUR_IN_MS); // Default 1 hour
+    } else {
+      this.expiresOn = new Date(0); // Set to epoch to indicate no valid token
+    }
   }
-
   async getToken(scopes: string | string[]): Promise<AccessToken | null> {
-    if (this.expiresOn <= new Date()) {
-      logger.error("Access token has expired");
+    if (!this.accessToken || !this.expiresOn || this.expiresOn <= new Date()) {
+      logger.error("Access token is not available or has expired");
       return null;
     }
 
@@ -42,20 +47,17 @@ export class ClientProvidedTokenCredential implements TokenBasedCredential {
       token: this.accessToken,
       expiresOnTimestamp: this.expiresOn.getTime()
     };
-  }
-
-  updateToken(accessToken: string, expiresOn?: Date): void {
+  }  updateToken(accessToken: string, expiresOn?: Date): void {
     this.accessToken = accessToken;
-    this.expiresOn = expiresOn || new Date(Date.now() + 3600000);
+    this.expiresOn = expiresOn || new Date(Date.now() + ONE_HOUR_IN_MS);
     logger.info("Access token updated successfully");
   }
-
   isExpired(): boolean {
-    return this.expiresOn <= new Date();
+    return !this.expiresOn || this.expiresOn <= new Date();
   }
 
   getExpirationTime(): Date {
-    return this.expiresOn;
+    return this.expiresOn || new Date(0);
   }
 }
 
@@ -95,12 +97,7 @@ export class AuthManager {
           this.config.clientId,
           this.config.clientSecret
         );
-        break;
-
-      case AuthMode.ClientProvidedToken:
-        if (!this.config.accessToken) {
-          throw new Error("Client provided token mode requires accessToken");
-        }
+        break;      case AuthMode.ClientProvidedToken:
         logger.info("Initializing Client Provided Token authentication");
         this.credential = new ClientProvidedTokenCredential(
           this.config.accessToken,
@@ -152,10 +149,15 @@ export class AuthManager {
       throw new Error("Token update only supported in client provided token mode");
     }
   }
-
   private async testCredential(): Promise<void> {
     if (!this.credential) {
       throw new Error("Credential not initialized");
+    }
+
+    // Skip testing if ClientProvidedToken mode has no initial token
+    if (this.config.mode === AuthMode.ClientProvidedToken && !this.config.accessToken) {
+      logger.info("Skipping initial credential test as no token was provided at startup.");
+      return;
     }
 
     try {

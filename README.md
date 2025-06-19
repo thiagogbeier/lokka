@@ -19,6 +19,81 @@ e.g.:
 
 ![How does Lokka work?](https://github.com/merill/lokka/blob/main/website/docs/assets/how-does-lokka-mcp-server-work.png?raw=true)
 
+## Authentication Methods *(Enhanced in v0.2.0)*
+
+Lokka now supports multiple authentication methods to accommodate different deployment scenarios:
+
+### 1. Client Credentials (Service-to-Service)
+Traditional app-only authentication using client credentials:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "CLIENT_SECRET": "<client-secret>"
+      }
+    }
+  }
+}
+```
+
+### 2. Interactive Authentication *(New)*
+User-based authentication with interactive login:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "USE_INTERACTIVE": "true",
+        "REDIRECT_URI": "http://localhost:3000"
+      }
+    }
+  }
+}
+```
+
+### 3. Client-Provided Token *(New)*
+Token-based authentication where the MCP Client provides access tokens:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "USE_CLIENT_TOKEN": "true"
+      }
+    }
+  }
+}
+```
+
+When using client-provided token mode:
+1. Start the MCP server with `USE_CLIENT_TOKEN=true`
+2. Use the `set-access-token` tool to provide a valid Microsoft Graph access token
+3. Use the `get-auth-status` tool to verify authentication status
+4. Refresh tokens as needed using `set-access-token`
+
+## New Tools *(v0.2.0)*
+
+### Token Management Tools
+- **`set-access-token`**: Set or update access tokens for Microsoft Graph authentication
+- **`get-auth-status`**: Check current authentication status and capabilities
+
+### Enhanced Microsoft Graph Tool
+- **`Lokka-Microsoft`**: Now supports all three authentication modes with improved error handling and token management
+
 ## Getting started
 
 See the docs for more information on how to install and configure Lokka.
@@ -43,15 +118,34 @@ See the docs for more information on how to install and configure Lokka.
      - `body` (JSON): The request body (for POST, PUT, PATCH)
    - Returns: Results from the Azure or Graph API call.
 
+2. `set-access-token` *(New in v0.2.0)*
+   - Set or update an access token for Microsoft Graph authentication when using client-provided token mode.
+   - Input:
+     - `accessToken` (string): The access token obtained from Microsoft Graph authentication
+     - `expiresOn` (string, optional): Token expiration time in ISO format
+   - Returns: Confirmation of token update
+
+3. `get-auth-status` *(New in v0.2.0)*
+   - Check the current authentication status and mode of the MCP Server
+   - Returns: Authentication mode, readiness status, and capabilities
+
 ### Environment Variables
 
-The configuration of the server is done using environment variables. The following environment variables are required:
+The configuration of the server is done using environment variables. The following environment variables are supported:
 
-| Name | Description |
-|------|-------------|
-| `TENANT_ID` | The ID of the Microsoft Entra tenant. |
-| `CLIENT_ID` | The ID of the application registered in Microsoft Entra. |
-| `CLIENT_SECRET` | The client secret of the application registered in Microsoft Entra. |
+| Name | Description | Required |
+|------|-------------|----------|
+| `TENANT_ID` | The ID of the Microsoft Entra tenant. | Yes (except for client-provided token mode) |
+| `CLIENT_ID` | The ID of the application registered in Microsoft Entra. | Yes (except for client-provided token mode) |
+| `CLIENT_SECRET` | The client secret of the application registered in Microsoft Entra. | Yes (for client credentials mode only) |
+| `USE_INTERACTIVE` | Set to "true" to enable interactive authentication mode. | No |
+| `USE_CLIENT_TOKEN` | Set to "true" to enable client-provided token authentication mode. | No |
+| `REDIRECT_URI` | Redirect URI for interactive authentication (default: http://localhost:3000). | No |
+| `ACCESS_TOKEN` | Initial access token for client-provided token mode. | No |
+
+## Contributors
+
+- Interactive and Token-based Authentication (v0.2.0) - [@darrenjrobinson](https://github.com/darrenjrobinson)
 
 ## Installation
 

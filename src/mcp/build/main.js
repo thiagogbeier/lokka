@@ -2,22 +2,21 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ClientSecretCredential } from "@azure/identity";
 import { Client, PageIterator } from "@microsoft/microsoft-graph-client";
-import { TokenCredentialAuthenticationProvider } from "@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js";
 import fetch from 'isomorphic-fetch'; // Required polyfill for Graph client
 import { logger } from "./logger.js";
+import { AuthManager, AuthMode } from "./auth.js";
 // Set up global fetch for the Microsoft Graph client
 global.fetch = fetch;
 // Create server instance
 const server = new McpServer({
     name: "Lokka-Microsoft",
-    version: "0.1.9", // Incremented version for refactor
+    version: "0.2.0", // Updated version for token-based auth support
 });
-logger.info("Starting Lokka Multi-Microsoft API MCP Server (v0.1.9 - Refactored with Graph SDK)");
-// Initialize Graph Client and Azure Auth Credential outside the tool function
+logger.info("Starting Lokka Multi-Microsoft API MCP Server (v0.2.0 - Token-Based Auth Support)");
+// Initialize authentication and clients
+let authManager = null;
 let graphClient = null;
-let azureCredential = null; // For Azure RM calls
 server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management. IMPORTANT: For Graph API GET requests using advanced query parameters ($filter, $count, $search, $orderby), you are ADVISED to set 'consistencyLevel: \"eventual\"'.", {
     apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management."),
     path: z.string().describe("The Azure or Graph API URL path to call (e.g. '/users', '/groups', '/subscriptions')"),
@@ -100,14 +99,14 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
                 default:
                     throw new Error(`Unsupported method: ${method}`);
             }
-        }
-        // --- Azure Resource Management Logic (using direct fetch) ---
+        } // --- Azure Resource Management Logic (using direct fetch) ---
         else { // apiType === 'azure'
-            if (!azureCredential) {
-                throw new Error("Azure credential not initialized");
+            if (!authManager) {
+                throw new Error("Auth manager not initialized");
             }
             determinedUrl = "https://management.azure.com"; // For error reporting
             // Acquire token for Azure RM
+            const azureCredential = authManager.getAzureCredential();
             const tokenResponse = await azureCredential.getToken("https://management.azure.com/.default");
             if (!tokenResponse || !tokenResponse.token) {
                 throw new Error("Failed to acquire Azure access token");
@@ -148,6 +147,7 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
                 while (currentUrl) {
                     logger.info(`Fetching Azure RM page: ${currentUrl}`);
                     // Re-acquire token for each page (Azure tokens might expire)
+                    const azureCredential = authManager.getAzureCredential();
                     const currentPageTokenResponse = await azureCredential.getToken("https://management.azure.com/.default");
                     if (!currentPageTokenResponse || !currentPageTokenResponse.token) {
                         throw new Error("Failed to acquire Azure access token during pagination");
@@ -239,27 +239,133 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
         };
     }
 });
+// Add token management tools
+server.tool("set-access-token", "Set or update the access token for Microsoft Graph authentication. Use this when the MCP Client has obtained a fresh token through interactive authentication.", {
+    accessToken: z.string().describe("The access token obtained from Microsoft Graph authentication"),
+    expiresOn: z.string().optional().describe("Token expiration time in ISO format (optional, defaults to 1 hour from now)")
+}, async ({ accessToken, expiresOn }) => {
+    try {
+        const expirationDate = expiresOn ? new Date(expiresOn) : undefined;
+        if (authManager?.getAuthMode() === AuthMode.ClientProvidedToken) {
+            authManager.updateAccessToken(accessToken, expirationDate);
+            // Reinitialize the Graph client with the new token
+            const authProvider = authManager.getGraphAuthProvider();
+            graphClient = Client.initWithMiddleware({
+                authProvider: authProvider,
+            });
+            return {
+                content: [{
+                        type: "text",
+                        text: "Access token updated successfully. You can now make Microsoft Graph requests on behalf of the authenticated user."
+                    }],
+            };
+        }
+        else {
+            return {
+                content: [{
+                        type: "text",
+                        text: "Error: MCP Server is not configured for client-provided token authentication. Set USE_CLIENT_TOKEN=true in environment variables."
+                    }],
+                isError: true
+            };
+        }
+    }
+    catch (error) {
+        logger.error("Error setting access token:", error);
+        return {
+            content: [{
+                    type: "text",
+                    text: `Error setting access token: ${error.message}`
+                }],
+            isError: true
+        };
+    }
+});
+server.tool("get-auth-status", "Check the current authentication status and mode of the MCP Server", {}, async () => {
+    try {
+        const authMode = authManager?.getAuthMode() || "Not initialized";
+        const isReady = authManager !== null;
+        const tokenStatus = authManager?.getTokenStatus();
+        return {
+            content: [{
+                    type: "text",
+                    text: JSON.stringify({
+                        authMode,
+                        isReady,
+                        supportsTokenUpdates: authMode === AuthMode.ClientProvidedToken,
+                        tokenStatus: tokenStatus || { isExpired: false },
+                        timestamp: new Date().toISOString()
+                    }, null, 2)
+                }],
+        };
+    }
+    catch (error) {
+        return {
+            content: [{
+                    type: "text",
+                    text: `Error checking auth status: ${error.message}`
+                }],
+            isError: true
+        };
+    }
+});
 // Start the server with stdio transport
 async function main() {
-    // Check for required environment variables
+    // Determine authentication mode based on environment variables
     const tenantId = process.env.TENANT_ID;
     const clientId = process.env.CLIENT_ID;
     const clientSecret = process.env.CLIENT_SECRET;
-    if (!tenantId || !clientId || !clientSecret) {
-        logger.error("Missing required environment variables: TENANT_ID, CLIENT_ID, or CLIENT_SECRET");
-        throw new Error("Missing required environment variables: TENANT_ID, CLIENT_ID, or CLIENT_SECRET");
+    const useInteractive = process.env.USE_INTERACTIVE === 'true';
+    const useClientToken = process.env.USE_CLIENT_TOKEN === 'true';
+    const initialAccessToken = process.env.ACCESS_TOKEN;
+    let authMode;
+    if (useClientToken) {
+        authMode = AuthMode.ClientProvidedToken;
+        if (!initialAccessToken) {
+            logger.info("Client token mode enabled but no initial token provided. Token must be set via set-access-token tool.");
+        }
     }
-    // Initialize Azure Credential
-    azureCredential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-    // Initialize Graph Authentication Provider
-    const authProvider = new TokenCredentialAuthenticationProvider(azureCredential, {
-        scopes: ["https://graph.microsoft.com/.default"],
-    });
-    // Initialize Graph Client
-    graphClient = Client.initWithMiddleware({
-        authProvider: authProvider,
-    });
-    logger.info("Graph Client and Azure Credential initialized successfully.");
+    else if (useInteractive) {
+        authMode = AuthMode.Interactive;
+    }
+    else {
+        authMode = AuthMode.ClientCredentials;
+    }
+    logger.info(`Starting with authentication mode: ${authMode}`);
+    const authConfig = {
+        mode: authMode,
+        tenantId,
+        clientId,
+        clientSecret,
+        accessToken: initialAccessToken,
+        redirectUri: process.env.REDIRECT_URI
+    };
+    // Validate required configuration
+    if (authMode === AuthMode.ClientCredentials) {
+        if (!tenantId || !clientId || !clientSecret) {
+            throw new Error("Client credentials mode requires TENANT_ID, CLIENT_ID, and CLIENT_SECRET");
+        }
+    }
+    else if (authMode === AuthMode.Interactive) {
+        if (!tenantId || !clientId) {
+            throw new Error("Interactive mode requires TENANT_ID and CLIENT_ID");
+        }
+    }
+    // Note: Client token mode can start without a token and receive it later
+    authManager = new AuthManager(authConfig);
+    // Only initialize if we have required config (for client token mode, we can start without a token)
+    if (authMode !== AuthMode.ClientProvidedToken || initialAccessToken) {
+        await authManager.initialize();
+        // Initialize Graph Client
+        const authProvider = authManager.getGraphAuthProvider();
+        graphClient = Client.initWithMiddleware({
+            authProvider: authProvider,
+        });
+        logger.info(`Authentication initialized successfully using ${authMode} mode`);
+    }
+    else {
+        logger.info("Started in client token mode. Use set-access-token tool to provide authentication token.");
+    }
     const transport = new StdioServerTransport();
     await server.connect(transport);
 }

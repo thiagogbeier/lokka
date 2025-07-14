@@ -54,8 +54,8 @@ App only authentication using a PEM-encoded client certificate:
       "env": {
         "TENANT_ID": "<tenant-id>",
         "CLIENT_ID": "<client-id>",
-        "CERTIFICATE_PATH": "/path/to/certificate.pem"
-        "CERTIFICATE_PASSWORD": "<optional-certificate-password>"
+        "CERTIFICATE_PATH": "/path/to/certificate.pem",
+        "CERTIFICATE_PASSWORD": "<optional-certificate-password>",
         "USE_CERTIFICATE": "true"
       }
     }

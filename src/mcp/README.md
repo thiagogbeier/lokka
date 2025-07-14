@@ -19,7 +19,7 @@ Follow the guide at [Lokka.dev](https://lokka.dev) to get started with Lokka and
 
 ![How does Lokka work?](https://github.com/merill/lokka/blob/main/website/docs/assets/how-does-lokka-mcp-server-work.png?raw=true)
 
-## Authentication Methods *(Enhanced in v0.2.0)*
+## Authentication Methods *(Enhanced in v0.2)*
 
 Lokka now supports multiple authentication methods to accommodate different deployment scenarios:
 
@@ -42,7 +42,33 @@ Traditional app-only authentication using client credentials:
 }
 ```
 
-### 2. Interactive Authentication *(New)*
+### 2. Certificate Authentication *(New)*
+App only authentication using a PEM-encoded client certificate:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "CERTIFICATE_PATH": "/path/to/certificate.pem"
+        "CERTIFICATE_PASSWORD": "<optional-certificate-password>"
+        "USE_CERTIFICATE": "true"
+      }
+    }
+  }
+}
+```
+
+For comfort, in order to convert a PFX client certificate to a PEM-encoded certificate:
+```
+openssl pkcs12 -in /path/to/cert.pfx -out /path/to/cert.pem -nodes -clcerts
+```
+
+### 3. Interactive Authentication *(New)*
 User-based authentication with interactive login:
 
 ```json
@@ -62,7 +88,7 @@ User-based authentication with interactive login:
 }
 ```
 
-### 3. Client-Provided Token *(New)*
+### 4. Client-Provided Token *(New)*
 Token-based authentication where the MCP Client provides access tokens:
 
 ```json
@@ -92,7 +118,7 @@ When using client-provided token mode:
 - **`get-auth-status`**: Check current authentication status and capabilities
 
 ### Enhanced Microsoft Graph Tool
-- **`Lokka-Microsoft`**: Now supports all three authentication modes with improved error handling and token management
+- **`Lokka-Microsoft`**: Now supports all four authentication modes with improved error handling and token management
 
 ## MCP Client Configuration
 
@@ -125,3 +151,4 @@ See the docs for more information on how to install and configure Lokka.
 ## Contributors
 
 - Interactive and Token-based Authentication (v0.2.0) - [@darrenjrobinson](https://github.com/darrenjrobinson)
+- Certificate Authentication (v0.2.1) - [@nitzpo](https://github.com/nitzpo)

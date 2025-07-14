@@ -386,6 +386,19 @@ async function main() {
   
   let authMode: AuthMode;
   
+  // Ensure only one authentication mode is enabled at a time
+  const enabledModes = [
+    useClientToken,
+    useInteractive,
+    useCertificate
+  ].filter(Boolean);
+
+  if (enabledModes.length > 1) {
+    throw new Error(
+      "Multiple authentication modes enabled. Please enable only one of USE_CLIENT_TOKEN, USE_INTERACTIVE, or USE_CERTIFICATE."
+    );
+  }
+
   if (useClientToken) {
     authMode = AuthMode.ClientProvidedToken;
     if (!initialAccessToken) {
@@ -422,8 +435,8 @@ async function main() {
       throw new Error("Interactive mode requires TENANT_ID and CLIENT_ID");
     }
   } else if (authMode === AuthMode.Certificate) {
-    if (!certificatePath) {
-      throw new Error("Certificate mode requires CERTIFICATE_PATH");
+    if (!tenantId || !clientId || !certificatePath) {
+      throw new Error("Certificate mode requires TENANT_ID, CLIENT_ID, and CERTIFICATE_PATH");
     }
   }
   // Note: Client token mode can start without a token and receive it later

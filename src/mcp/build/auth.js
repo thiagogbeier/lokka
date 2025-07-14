@@ -1,4 +1,4 @@
-import { ClientSecretCredential, InteractiveBrowserCredential, DeviceCodeCredential } from "@azure/identity";
+import { ClientSecretCredential, ClientCertificateCredential, InteractiveBrowserCredential, DeviceCodeCredential } from "@azure/identity";
 import { logger } from "./logger.js";
 // Constants
 const ONE_HOUR_IN_MS = 60 * 60 * 1000; // One hour in milliseconds
@@ -55,6 +55,7 @@ export var AuthMode;
     AuthMode["ClientCredentials"] = "client_credentials";
     AuthMode["ClientProvidedToken"] = "client_provided_token";
     AuthMode["Interactive"] = "interactive";
+    AuthMode["Certificate"] = "certificate";
 })(AuthMode || (AuthMode = {}));
 export class AuthManager {
     credential = null;
@@ -74,6 +75,16 @@ export class AuthManager {
             case AuthMode.ClientProvidedToken:
                 logger.info("Initializing Client Provided Token authentication");
                 this.credential = new ClientProvidedTokenCredential(this.config.accessToken, this.config.expiresOn);
+                break;
+            case AuthMode.Certificate:
+                if (!this.config.tenantId || !this.config.clientId || !this.config.certificatePath) {
+                    throw new Error("Certificate mode requires tenantId, clientId, and certificatePath");
+                }
+                logger.info("Initializing Certificate authentication");
+                this.credential = new ClientCertificateCredential(this.config.tenantId, this.config.clientId, {
+                    certificatePath: this.config.certificatePath,
+                    certificatePassword: this.config.certificatePassword
+                });
                 break;
             case AuthMode.Interactive:
                 if (!this.config.tenantId || !this.config.clientId) {

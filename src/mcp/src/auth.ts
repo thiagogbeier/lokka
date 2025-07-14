@@ -1,4 +1,4 @@
-import { AccessToken, TokenCredential, ClientSecretCredential, InteractiveBrowserCredential, DeviceCodeCredential, DeviceCodeInfo } from "@azure/identity";
+import { AccessToken, TokenCredential, ClientSecretCredential, ClientCertificateCredential, InteractiveBrowserCredential, DeviceCodeCredential, DeviceCodeInfo } from "@azure/identity";
 import { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
 import { logger } from "./logger.js";
 
@@ -64,7 +64,8 @@ export class ClientProvidedTokenCredential implements TokenBasedCredential {
 export enum AuthMode {
   ClientCredentials = "client_credentials",
   ClientProvidedToken = "client_provided_token", 
-  Interactive = "interactive"
+  Interactive = "interactive",
+  Certificate = "certificate"
 }
 
 export interface AuthConfig {
@@ -75,6 +76,8 @@ export interface AuthConfig {
   accessToken?: string;
   expiresOn?: Date;
   redirectUri?: string;
+  certificatePath?: string;
+  certificatePassword?: string;
 }
 
 export class AuthManager {
@@ -97,12 +100,25 @@ export class AuthManager {
           this.config.clientId,
           this.config.clientSecret
         );
-        break;      case AuthMode.ClientProvidedToken:
+        break;
+
+      case AuthMode.ClientProvidedToken:
         logger.info("Initializing Client Provided Token authentication");
         this.credential = new ClientProvidedTokenCredential(
           this.config.accessToken,
           this.config.expiresOn
         );
+        break;
+        
+      case AuthMode.Certificate:
+        if (!this.config.tenantId || !this.config.clientId || !this.config.certificatePath) {
+          throw new Error("Certificate mode requires tenantId, clientId, and certificatePath");
+        }
+        logger.info("Initializing Certificate authentication");
+        this.credential = new ClientCertificateCredential(this.config.tenantId, this.config.clientId, {
+          certificatePath: this.config.certificatePath,
+          certificatePassword: this.config.certificatePassword
+        });
         break;
 
       case AuthMode.Interactive:

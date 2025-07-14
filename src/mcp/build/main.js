@@ -315,10 +315,22 @@ async function main() {
     const tenantId = process.env.TENANT_ID;
     const clientId = process.env.CLIENT_ID;
     const clientSecret = process.env.CLIENT_SECRET;
+    const certificatePath = process.env.CERTIFICATE_PATH;
+    const certificatePassword = process.env.CERTIFICATE_PASSWORD; // optional
+    const useCertificate = process.env.USE_CERTIFICATE === 'true';
     const useInteractive = process.env.USE_INTERACTIVE === 'true';
     const useClientToken = process.env.USE_CLIENT_TOKEN === 'true';
     const initialAccessToken = process.env.ACCESS_TOKEN;
     let authMode;
+    // Ensure only one authentication mode is enabled at a time
+    const enabledModes = [
+        useClientToken,
+        useInteractive,
+        useCertificate
+    ].filter(Boolean);
+    if (enabledModes.length > 1) {
+        throw new Error("Multiple authentication modes enabled. Please enable only one of USE_CLIENT_TOKEN, USE_INTERACTIVE, or USE_CERTIFICATE.");
+    }
     if (useClientToken) {
         authMode = AuthMode.ClientProvidedToken;
         if (!initialAccessToken) {
@@ -327,6 +339,9 @@ async function main() {
     }
     else if (useInteractive) {
         authMode = AuthMode.Interactive;
+    }
+    else if (useCertificate) {
+        authMode = AuthMode.Certificate;
     }
     else {
         authMode = AuthMode.ClientCredentials;
@@ -338,7 +353,9 @@ async function main() {
         clientId,
         clientSecret,
         accessToken: initialAccessToken,
-        redirectUri: process.env.REDIRECT_URI
+        redirectUri: process.env.REDIRECT_URI,
+        certificatePath,
+        certificatePassword
     };
     // Validate required configuration
     if (authMode === AuthMode.ClientCredentials) {
@@ -349,6 +366,11 @@ async function main() {
     else if (authMode === AuthMode.Interactive) {
         if (!tenantId || !clientId) {
             throw new Error("Interactive mode requires TENANT_ID and CLIENT_ID");
+        }
+    }
+    else if (authMode === AuthMode.Certificate) {
+        if (!tenantId || !clientId || !certificatePath) {
+            throw new Error("Certificate mode requires TENANT_ID, CLIENT_ID, and CERTIFICATE_PATH");
         }
     }
     // Note: Client token mode can start without a token and receive it later

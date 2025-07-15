@@ -42,7 +42,7 @@ This is the simplest config and uses the default Lokka app.
 
 #### Interactive auth with custom app
 
-If you want to use a custom Microsoft Entra app, you can create a new app registration in Microsoft Entra and configure it with the following environment variables:
+If you wish to use a custom Microsoft Entra app, you can create a new app registration in Microsoft Entra and configure it with the following environment variables:
 
 ```json
 {
@@ -60,11 +60,41 @@ If you want to use a custom Microsoft Entra app, you can create a new app regist
 }
 ```
 
-### Client Credentials (Service-to-Service)
+### App-Only Auth
 
-Traditional app-only authentication using client credentials:
+Traditional app-only authentication. You can use either certificate (recommended) or client secret authentication with the following configuration.
 
 See [Install Guide](https://lokka.dev/docs/install) for more details on how to create an Entra app.
+
+#### App-Only Auth with Certificate
+
+App only authentication using a PEM-encoded client certificate:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "CERTIFICATE_PATH": "/path/to/certificate.pem",
+        "CERTIFICATE_PASSWORD": "<optional-certificate-password>",
+        "USE_CERTIFICATE": "true"
+      }
+    }
+  }
+}
+```
+
+For comfort, in order to convert a PFX client certificate to a PEM-encoded certificate:
+
+```bash
+openssl pkcs12 -in /path/to/cert.pfx -out /path/to/cert.pem -nodes -clcerts
+```
+
+#### #### App-Only Auth with Client Secret
 
 ```json
 {
@@ -167,6 +197,7 @@ The configuration of the server is done using environment variables. The followi
 ## Contributors
 
 - Interactive and Token-based Authentication (v0.2.0) - [@darrenjrobinson](https://github.com/darrenjrobinson)
+- Certificate Authentication (v0.2.1) - [@nitzpo](https://github.com/nitzpo)
 
 ## Installation
 

@@ -1,6 +1,6 @@
 ---
 title: 🧩 Developer guide
-sidebar_position: 3
+sidebar_position: 4
 ---
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
@@ -9,7 +9,7 @@ Follow this guide if you want to build Lokka from source to contribute to the pr
 
 ## Pre-requisites
 
-- Follow the [installation guide](https://lokka.dev/docs/install) to install Node and create the Entra application.
+- Follow the [installation guide](install) to install Node and the [advanced guide](install-advanced) if you wish to create a custom Entra application.
 - Clone the Lokka repository from GitHub [https://github.com/merill/lokka](https://github.com/merill/lokka)
 
 ## Building the project

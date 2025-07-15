@@ -94,7 +94,7 @@ For comfort, in order to convert a PFX client certificate to a PEM-encoded certi
 openssl pkcs12 -in /path/to/cert.pfx -out /path/to/cert.pem -nodes -clcerts
 ```
 
-#### #### App-Only Auth with Client Secret
+#### App-Only Auth with Client Secret
 
 ```json
 {

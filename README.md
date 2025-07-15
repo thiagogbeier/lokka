@@ -19,12 +19,52 @@ e.g.:
 
 ![How does Lokka work?](https://github.com/merill/lokka/blob/main/website/docs/assets/how-does-lokka-mcp-server-work.png?raw=true)
 
-## Authentication Methods *(Enhanced in v0.2.0)*
+## Authentication Methods
 
 Lokka now supports multiple authentication methods to accommodate different deployment scenarios:
 
-### 1. Client Credentials (Service-to-Service)
+### Interactive Auth
+
+For user-based authentication with interactive login, you can use the following configuration:
+
+This is the simplest config and uses the default Lokka app.
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"]
+    }
+  }
+}
+```
+
+#### Interactive auth with custom app
+
+If you want to use a custom Microsoft Entra app, you can create a new app registration in Microsoft Entra and configure it with the following environment variables:
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"],
+      "env": {
+        "TENANT_ID": "<tenant-id>",
+        "CLIENT_ID": "<client-id>",
+        "USE_INTERACTIVE": "true"
+      }
+    }
+  }
+}
+```
+
+### Client Credentials (Service-to-Service)
+
 Traditional app-only authentication using client credentials:
+
+See [Install Guide](https://lokka.dev/docs/install) for more details on how to create an Entra app.
 
 ```json
 {
@@ -42,27 +82,8 @@ Traditional app-only authentication using client credentials:
 }
 ```
 
-### 2. Interactive Authentication *(New)*
-User-based authentication with interactive login:
+### Client-Provided Token
 
-```json
-{
-  "mcpServers": {
-    "Lokka-Microsoft": {
-      "command": "npx",
-      "args": ["-y", "@merill/lokka"],
-      "env": {
-        "TENANT_ID": "<tenant-id>",
-        "CLIENT_ID": "<client-id>",
-        "USE_INTERACTIVE": "true",
-        "REDIRECT_URI": "http://localhost:3000"
-      }
-    }
-  }
-}
-```
-
-### 3. Client-Provided Token *(New)*
 Token-based authentication where the MCP Client provides access tokens:
 
 ```json
@@ -80,19 +101,19 @@ Token-based authentication where the MCP Client provides access tokens:
 ```
 
 When using client-provided token mode:
+
 1. Start the MCP server with `USE_CLIENT_TOKEN=true`
 2. Use the `set-access-token` tool to provide a valid Microsoft Graph access token
 3. Use the `get-auth-status` tool to verify authentication status
 4. Refresh tokens as needed using `set-access-token`
 
-## New Tools *(v0.2.0)*
+## New Tools
 
 ### Token Management Tools
+
 - **`set-access-token`**: Set or update access tokens for Microsoft Graph authentication
 - **`get-auth-status`**: Check current authentication status and capabilities
-
-### Enhanced Microsoft Graph Tool
-- **`Lokka-Microsoft`**: Now supports all three authentication modes with improved error handling and token management
+- **`add-graph-permission`**: Request additional Microsoft Graph permission scopes interactively
 
 ## Getting started
 
@@ -151,6 +172,21 @@ The configuration of the server is done using environment variables. The followi
 
 To use this server with the Claude Desktop app, add the following configuration to the "mcpServers" section of your
 `claude_desktop_config.json`:
+
+### Interactive Authentication
+
+```json
+{
+  "mcpServers": {
+    "Lokka-Microsoft": {
+      "command": "npx",
+      "args": ["-y", "@merill/lokka"]
+    }
+  }
+}
+```
+
+### Client Credentials Authentication
 
 ```json
 {

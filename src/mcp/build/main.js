@@ -6,6 +6,7 @@ import { Client, PageIterator } from "@microsoft/microsoft-graph-client";
 import fetch from 'isomorphic-fetch'; // Required polyfill for Graph client
 import { logger } from "./logger.js";
 import { AuthManager, AuthMode } from "./auth.js";
+import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri } from "./constants.js";
 // Set up global fetch for the Microsoft Graph client
 global.fetch = fetch;
 // Create server instance
@@ -317,10 +318,36 @@ server.tool("add-graph-permission", "Request additional Microsoft Graph permissi
     try {
         // Check if we're in interactive mode
         if (!authManager || authManager.getAuthMode() !== AuthMode.Interactive) {
+            const currentMode = authManager?.getAuthMode() || "Not initialized";
+            const clientId = process.env.CLIENT_ID;
+            let errorMessage = `Error: add-graph-permission tool is only available in interactive authentication mode. Current mode: ${currentMode}.\n\n`;
+            if (currentMode === AuthMode.ClientCredentials) {
+                errorMessage += `📋 To add permissions in Client Credentials mode:\n`;
+                errorMessage += `1. Open the Microsoft Entra admin center (https://entra.microsoft.com)\n`;
+                errorMessage += `2. Navigate to Applications > App registrations\n`;
+                errorMessage += `3. Find your application${clientId ? ` (Client ID: ${clientId})` : ''}\n`;
+                errorMessage += `4. Go to API permissions\n`;
+                errorMessage += `5. Click "Add a permission" and select Microsoft Graph\n`;
+                errorMessage += `6. Choose "Application permissions" and add the required scopes:\n`;
+                errorMessage += `   ${scopes.map(scope => `• ${scope}`).join('\n   ')}\n`;
+                errorMessage += `7. Click "Grant admin consent" to approve the permissions\n`;
+                errorMessage += `8. Restart the MCP server to use the new permissions`;
+            }
+            else if (currentMode === AuthMode.ClientProvidedToken) {
+                errorMessage += `📋 To add permissions in Client Provided Token mode:\n`;
+                errorMessage += `1. Obtain a new access token that includes the required scopes:\n`;
+                errorMessage += `   ${scopes.map(scope => `• ${scope}`).join('\n   ')}\n`;
+                errorMessage += `2. When obtaining the token, ensure these scopes are included in the consent prompt\n`;
+                errorMessage += `3. Use the set-access-token tool to update the server with the new token\n`;
+                errorMessage += `4. The new token will include the additional permissions`;
+            }
+            else {
+                errorMessage += `To use interactive permission requests, set USE_INTERACTIVE=true in environment variables and restart the server.`;
+            }
             return {
                 content: [{
                         type: "text",
-                        text: "Error: add-graph-permission tool is only available in interactive authentication mode. Set USE_INTERACTIVE=true in environment variables and restart the server."
+                        text: errorMessage
                     }],
                 isError: true
             };
@@ -347,19 +374,11 @@ server.tool("add-graph-permission", "Request additional Microsoft Graph permissi
             };
         }
         logger.info(`Requesting additional Graph permissions: ${scopes.join(', ')}`);
-        // Get current configuration
-        const tenantId = process.env.TENANT_ID;
-        const clientId = process.env.CLIENT_ID;
-        const redirectUri = process.env.REDIRECT_URI;
-        if (!tenantId || !clientId) {
-            return {
-                content: [{
-                        type: "text",
-                        text: "Error: TENANT_ID and CLIENT_ID environment variables are required for interactive authentication."
-                    }],
-                isError: true
-            };
-        }
+        // Get current configuration with defaults for interactive auth
+        const tenantId = process.env.TENANT_ID || LokkaDefaultTenantId;
+        const clientId = process.env.CLIENT_ID || LokkaClientId;
+        const redirectUri = process.env.REDIRECT_URI || LokkaDefaultRedirectUri;
+        logger.info(`Using tenant ID: ${tenantId}, client ID: ${clientId} for interactive authentication`);
         // Create a new interactive credential with the requested scopes
         const { InteractiveBrowserCredential, DeviceCodeCredential } = await import("@azure/identity");
         let newCredential;
@@ -368,7 +387,7 @@ server.tool("add-graph-permission", "Request additional Microsoft Graph permissi
             newCredential = new InteractiveBrowserCredential({
                 tenantId: tenantId,
                 clientId: clientId,
-                redirectUri: redirectUri || "http://localhost:3000",
+                redirectUri: redirectUri,
             });
         }
         catch (error) {
@@ -444,11 +463,6 @@ server.tool("add-graph-permission", "Request additional Microsoft Graph permissi
 // Start the server with stdio transport
 async function main() {
     // Determine authentication mode based on environment variables
-    const tenantId = process.env.TENANT_ID;
-    const clientId = process.env.CLIENT_ID;
-    const clientSecret = process.env.CLIENT_SECRET;
-    const certificatePath = process.env.CERTIFICATE_PATH;
-    const certificatePassword = process.env.CERTIFICATE_PASSWORD; // optional
     const useCertificate = process.env.USE_CERTIFICATE === 'true';
     const useInteractive = process.env.USE_INTERACTIVE === 'true';
     const useClientToken = process.env.USE_CLIENT_TOKEN === 'true';
@@ -476,9 +490,47 @@ async function main() {
         authMode = AuthMode.Certificate;
     }
     else {
-        authMode = AuthMode.ClientCredentials;
+        // Check if we have client credentials environment variables
+        const hasClientCredentials = process.env.TENANT_ID && process.env.CLIENT_ID && process.env.CLIENT_SECRET;
+        if (hasClientCredentials) {
+            authMode = AuthMode.ClientCredentials;
+        }
+        else {
+            // Default to interactive mode for better user experience
+            authMode = AuthMode.Interactive;
+            logger.info("No authentication mode specified and no client credentials found. Defaulting to interactive mode.");
+        }
     }
     logger.info(`Starting with authentication mode: ${authMode}`);
+    // Get tenant ID and client ID with defaults only for interactive mode
+    let tenantId;
+    let clientId;
+    if (authMode === AuthMode.Interactive) {
+        // Interactive mode can use defaults
+        tenantId = process.env.TENANT_ID || LokkaDefaultTenantId;
+        clientId = process.env.CLIENT_ID || LokkaClientId;
+        logger.info(`Interactive mode using tenant ID: ${tenantId}, client ID: ${clientId}`);
+    }
+    else {
+        // All other modes require explicit values from environment variables
+        tenantId = process.env.TENANT_ID;
+        clientId = process.env.CLIENT_ID;
+    }
+    const clientSecret = process.env.CLIENT_SECRET;
+    const certificatePath = process.env.CERTIFICATE_PATH;
+    const certificatePassword = process.env.CERTIFICATE_PASSWORD; // optional
+    // Validate required configuration
+    if (authMode === AuthMode.ClientCredentials) {
+        if (!tenantId || !clientId || !clientSecret) {
+            throw new Error("Client credentials mode requires explicit TENANT_ID, CLIENT_ID, and CLIENT_SECRET environment variables");
+        }
+    }
+    else if (authMode === AuthMode.Certificate) {
+        if (!tenantId || !clientId || !certificatePath) {
+            throw new Error("Certificate mode requires explicit TENANT_ID, CLIENT_ID, and CERTIFICATE_PATH environment variables");
+        }
+    }
+    // Note: Client token mode can start without a token and receive it later
     const authConfig = {
         mode: authMode,
         tenantId,
@@ -489,23 +541,6 @@ async function main() {
         certificatePath,
         certificatePassword
     };
-    // Validate required configuration
-    if (authMode === AuthMode.ClientCredentials) {
-        if (!tenantId || !clientId || !clientSecret) {
-            throw new Error("Client credentials mode requires TENANT_ID, CLIENT_ID, and CLIENT_SECRET");
-        }
-    }
-    else if (authMode === AuthMode.Interactive) {
-        if (!tenantId || !clientId) {
-            throw new Error("Interactive mode requires TENANT_ID and CLIENT_ID");
-        }
-    }
-    else if (authMode === AuthMode.Certificate) {
-        if (!tenantId || !clientId || !certificatePath) {
-            throw new Error("Certificate mode requires TENANT_ID, CLIENT_ID, and CERTIFICATE_PATH");
-        }
-    }
-    // Note: Client token mode can start without a token and receive it later
     authManager = new AuthManager(authConfig);
     // Only initialize if we have required config (for client token mode, we can start without a token)
     if (authMode !== AuthMode.ClientProvidedToken || initialAccessToken) {

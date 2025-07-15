@@ -6,6 +6,7 @@ import { Client, PageIterator, PageCollection } from "@microsoft/microsoft-graph
 import fetch from 'isomorphic-fetch'; // Required polyfill for Graph client
 import { logger } from "./logger.js";
 import { AuthManager, AuthConfig, AuthMode } from "./auth.js";
+import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri } from "./constants.js";
 
 // Set up global fetch for the Microsoft Graph client
 (global as any).fetch = fetch;
@@ -444,20 +445,12 @@ server.tool(
 
       logger.info(`Requesting additional Graph permissions: ${scopes.join(', ')}`);
 
-      // Get current configuration
-      const tenantId = process.env.TENANT_ID;
-      const clientId = process.env.CLIENT_ID;
-      const redirectUri = process.env.REDIRECT_URI;
+      // Get current configuration with defaults for interactive auth
+      const tenantId = process.env.TENANT_ID || LokkaDefaultTenantId;
+      const clientId = process.env.CLIENT_ID || LokkaClientId;
+      const redirectUri = process.env.REDIRECT_URI || LokkaDefaultRedirectUri;
 
-      if (!tenantId || !clientId) {
-        return {
-          content: [{ 
-            type: "text" as const, 
-            text: "Error: TENANT_ID and CLIENT_ID environment variables are required for interactive authentication." 
-          }],
-          isError: true
-        };
-      }
+      logger.info(`Using tenant ID: ${tenantId}, client ID: ${clientId} for interactive authentication`);
 
       // Create a new interactive credential with the requested scopes
       const { InteractiveBrowserCredential, DeviceCodeCredential } = await import("@azure/identity");
@@ -468,7 +461,7 @@ server.tool(
         newCredential = new InteractiveBrowserCredential({
           tenantId: tenantId,
           clientId: clientId,
-          redirectUri: redirectUri || "http://localhost:3000",
+          redirectUri: redirectUri,
         });
       } catch (error) {
         // Fallback to Device Code flow
@@ -554,11 +547,6 @@ server.tool(
 // Start the server with stdio transport
 async function main() {
   // Determine authentication mode based on environment variables
-  const tenantId = process.env.TENANT_ID;
-  const clientId = process.env.CLIENT_ID;
-  const clientSecret = process.env.CLIENT_SECRET;
-  const certificatePath = process.env.CERTIFICATE_PATH;
-  const certificatePassword = process.env.CERTIFICATE_PASSWORD; // optional
   const useCertificate = process.env.USE_CERTIFICATE === 'true';
   const useInteractive = process.env.USE_INTERACTIVE === 'true';
   const useClientToken = process.env.USE_CLIENT_TOKEN === 'true';
@@ -589,10 +577,50 @@ async function main() {
   } else if (useCertificate) {
     authMode = AuthMode.Certificate;
   } else {
-    authMode = AuthMode.ClientCredentials;
+    // Check if we have client credentials environment variables
+    const hasClientCredentials = process.env.TENANT_ID && process.env.CLIENT_ID && process.env.CLIENT_SECRET;
+    
+    if (hasClientCredentials) {
+      authMode = AuthMode.ClientCredentials;
+    } else {
+      // Default to interactive mode for better user experience
+      authMode = AuthMode.Interactive;
+      logger.info("No authentication mode specified and no client credentials found. Defaulting to interactive mode.");
+    }
   }
 
   logger.info(`Starting with authentication mode: ${authMode}`);
+
+  // Get tenant ID and client ID with defaults only for interactive mode
+  let tenantId: string | undefined;
+  let clientId: string | undefined;
+  
+  if (authMode === AuthMode.Interactive) {
+    // Interactive mode can use defaults
+    tenantId = process.env.TENANT_ID || LokkaDefaultTenantId;
+    clientId = process.env.CLIENT_ID || LokkaClientId;
+    logger.info(`Interactive mode using tenant ID: ${tenantId}, client ID: ${clientId}`);
+  } else {
+    // All other modes require explicit values from environment variables
+    tenantId = process.env.TENANT_ID;
+    clientId = process.env.CLIENT_ID;
+  }
+
+  const clientSecret = process.env.CLIENT_SECRET;
+  const certificatePath = process.env.CERTIFICATE_PATH;
+  const certificatePassword = process.env.CERTIFICATE_PASSWORD; // optional
+
+  // Validate required configuration
+  if (authMode === AuthMode.ClientCredentials) {
+    if (!tenantId || !clientId || !clientSecret) {
+      throw new Error("Client credentials mode requires explicit TENANT_ID, CLIENT_ID, and CLIENT_SECRET environment variables");
+    }
+  } else if (authMode === AuthMode.Certificate) {
+    if (!tenantId || !clientId || !certificatePath) {
+      throw new Error("Certificate mode requires explicit TENANT_ID, CLIENT_ID, and CERTIFICATE_PATH environment variables");
+    }
+  }
+  // Note: Client token mode can start without a token and receive it later
 
   const authConfig: AuthConfig = {
     mode: authMode,
@@ -604,22 +632,6 @@ async function main() {
     certificatePath,
     certificatePassword
   };
-
-  // Validate required configuration
-  if (authMode === AuthMode.ClientCredentials) {
-    if (!tenantId || !clientId || !clientSecret) {
-      throw new Error("Client credentials mode requires TENANT_ID, CLIENT_ID, and CLIENT_SECRET");
-    }
-  } else if (authMode === AuthMode.Interactive) {
-    if (!tenantId || !clientId) {
-      throw new Error("Interactive mode requires TENANT_ID and CLIENT_ID");
-    }
-  } else if (authMode === AuthMode.Certificate) {
-    if (!tenantId || !clientId || !certificatePath) {
-      throw new Error("Certificate mode requires TENANT_ID, CLIENT_ID, and CERTIFICATE_PATH");
-    }
-  }
-  // Note: Client token mode can start without a token and receive it later
 
   authManager = new AuthManager(authConfig);
   

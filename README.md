@@ -145,6 +145,16 @@ When using client-provided token mode:
 - **`get-auth-status`**: Check current authentication status and capabilities
 - **`add-graph-permission`**: Request additional Microsoft Graph permission scopes interactively
 
+### Graph API Version Control
+
+Lokka now supports controlling the default Microsoft Graph API version used for all requests:
+
+- **Default behavior**: Uses `beta` version for access to latest features
+- **Production mode**: Set `USE_GRAPH_BETA=false` to force all requests to use `v1.0` version
+- **Per-request override**: You can still specify `graphApiVersion` parameter in individual requests (unless `USE_GRAPH_BETA=false`)
+
+When `USE_GRAPH_BETA=false`, all Graph API calls will use the stable `v1.0` version, even if `beta` is explicitly requested in the `graphApiVersion` parameter.
+
 ## Getting started
 
 See the docs for more information on how to install and configure Lokka.
@@ -191,8 +201,12 @@ The configuration of the server is done using environment variables. The followi
 | `CLIENT_SECRET` | The client secret of the application registered in Microsoft Entra. | Yes (for client credentials mode only) |
 | `USE_INTERACTIVE` | Set to "true" to enable interactive authentication mode. | No |
 | `USE_CLIENT_TOKEN` | Set to "true" to enable client-provided token authentication mode. | No |
-| `REDIRECT_URI` | Redirect URI for interactive authentication (default: http://localhost:3000). | No |
+| `USE_CERTIFICATE` | Set to "true" to enable certificate authentication mode. | No |
+| `CERTIFICATE_PATH` | Path to the PEM-encoded certificate file for certificate authentication. | Yes (for certificate mode only) |
+| `CERTIFICATE_PASSWORD` | Password for the certificate file (if encrypted). | No |
+| `REDIRECT_URI` | Redirect URI for interactive authentication (default: `http://localhost:3000`). | No |
 | `ACCESS_TOKEN` | Initial access token for client-provided token mode. | No |
+| `USE_GRAPH_BETA` | Set to "false" to force all Graph API calls to use v1.0 instead of beta (default: true, allows beta). | No |
 
 ## Contributors
 

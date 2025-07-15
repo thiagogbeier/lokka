@@ -6,7 +6,7 @@ import { Client, PageIterator } from "@microsoft/microsoft-graph-client";
 import fetch from 'isomorphic-fetch'; // Required polyfill for Graph client
 import { logger } from "./logger.js";
 import { AuthManager, AuthMode } from "./auth.js";
-import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri } from "./constants.js";
+import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri, getDefaultGraphApiVersion } from "./constants.js";
 // Set up global fetch for the Microsoft Graph client
 global.fetch = fetch;
 // Create server instance
@@ -18,6 +18,10 @@ logger.info("Starting Lokka Multi-Microsoft API MCP Server (v0.2.0 - Token-Based
 // Initialize authentication and clients
 let authManager = null;
 let graphClient = null;
+// Check USE_GRAPH_BETA environment variable
+const useGraphBeta = process.env.USE_GRAPH_BETA !== 'false'; // Default to true unless explicitly set to 'false'
+const defaultGraphApiVersion = getDefaultGraphApiVersion();
+logger.info(`Graph API default version: ${defaultGraphApiVersion} (USE_GRAPH_BETA=${process.env.USE_GRAPH_BETA || 'undefined'})`);
 server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management. IMPORTANT: For Graph API GET requests using advanced query parameters ($filter, $count, $search, $orderby), you are ADVISED to set 'consistencyLevel: \"eventual\"'.", {
     apiType: z.enum(["graph", "azure"]).describe("Type of Microsoft API to query. Options: 'graph' for Microsoft Graph (Entra) or 'azure' for Azure Resource Management."),
     path: z.string().describe("The Azure or Graph API URL path to call (e.g. '/users', '/groups', '/subscriptions')"),
@@ -26,11 +30,13 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
     subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)."),
     queryParams: z.record(z.string()).optional().describe("Query parameters for the request"),
     body: z.record(z.string(), z.any()).optional().describe("The request body (for POST, PUT, PATCH)"),
-    graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
+    graphApiVersion: z.enum(["v1.0", "beta"]).optional().default(defaultGraphApiVersion).describe(`Microsoft Graph API version to use (default: ${defaultGraphApiVersion})`),
     fetchAll: z.boolean().optional().default(false).describe("Set to true to automatically fetch all pages for list results (e.g., users, groups). Default is false."),
     consistencyLevel: z.string().optional().describe("Graph API ConsistencyLevel header. ADVISED to be set to 'eventual' for Graph GET requests using advanced query parameters ($filter, $count, $search, $orderby)."),
 }, async ({ apiType, path, method, apiVersion, subscriptionId, queryParams, body, graphApiVersion, fetchAll, consistencyLevel }) => {
-    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}, consistencyLevel=${consistencyLevel}`);
+    // Override graphApiVersion if USE_GRAPH_BETA is explicitly set to false
+    const effectiveGraphApiVersion = !useGraphBeta ? "v1.0" : graphApiVersion;
+    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${effectiveGraphApiVersion}, fetchAll=${fetchAll}, consistencyLevel=${consistencyLevel}`);
     let determinedUrl;
     try {
         let responseData;
@@ -39,9 +45,9 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
             if (!graphClient) {
                 throw new Error("Graph client not initialized");
             }
-            determinedUrl = `https://graph.microsoft.com/${graphApiVersion}`; // For error reporting
+            determinedUrl = `https://graph.microsoft.com/${effectiveGraphApiVersion}`; // For error reporting
             // Construct the request using the Graph SDK client
-            let request = graphClient.api(path).version(graphApiVersion);
+            let request = graphClient.api(path).version(effectiveGraphApiVersion);
             // Add query parameters if provided and not empty
             if (queryParams && Object.keys(queryParams).length > 0) {
                 request = request.query(queryParams);
@@ -203,7 +209,7 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
         }
         // --- Format and Return Result ---
         // For all requests, format as text
-        let resultText = `Result for ${apiType} API (${apiType === 'graph' ? graphApiVersion : apiVersion}) - ${method} ${path}:\n\n`;
+        let resultText = `Result for ${apiType} API (${apiType === 'graph' ? effectiveGraphApiVersion : apiVersion}) - ${method} ${path}:\n\n`;
         resultText += JSON.stringify(responseData, null, 2); // responseData already contains the correct structure for fetchAll Graph case
         // Add pagination note if applicable (only for single page GET)
         if (!fetchAll && method === 'get') {
@@ -221,7 +227,7 @@ server.tool("Lokka-Microsoft", "A versatile tool to interact with Microsoft APIs
         // Try to determine the base URL even in case of error
         if (!determinedUrl) {
             determinedUrl = apiType === 'graph'
-                ? `https://graph.microsoft.com/${graphApiVersion}`
+                ? `https://graph.microsoft.com/${effectiveGraphApiVersion}`
                 : "https://management.azure.com";
         }
         // Include error body if available from Graph SDK error
@@ -282,7 +288,7 @@ server.tool("set-access-token", "Set or update the access token for Microsoft Gr
         };
     }
 });
-server.tool("get-auth-status", "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session. Avoid calling this by default and only call this when you receive a sign in related error from Microsoft Graph.", {}, async () => {
+server.tool("get-auth-status", "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session.", {}, async () => {
     try {
         const authMode = authManager?.getAuthMode() || "Not initialized";
         const isReady = authManager !== null;
@@ -311,7 +317,7 @@ server.tool("get-auth-status", "Check the current authentication status and mode
     }
 });
 // Add tool for requesting additional Graph permissions
-server.tool("add-graph-permission", "Request additional Microsoft Graph permission scopes by performing a fresh interactive sign-in. This tool only works in interactive authentication mode and will always prompt the user to sign in again with the new scopes to ensure they are properly acquired.", {
+server.tool("add-graph-permission", "Request additional Microsoft Graph permission scopes by performing a fresh interactive sign-in. This tool only works in interactive authentication mode and should be used if any Graph API call returns permissions related errors.", {
     scopes: z.array(z.string()).describe("Array of Microsoft Graph permission scopes to request (e.g., ['User.Read', 'Mail.ReadWrite', 'Directory.Read.All'])")
 }, async ({ scopes }) => {
     try {

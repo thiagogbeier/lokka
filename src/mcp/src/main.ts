@@ -6,7 +6,7 @@ import { Client, PageIterator, PageCollection } from "@microsoft/microsoft-graph
 import fetch from 'isomorphic-fetch'; // Required polyfill for Graph client
 import { logger } from "./logger.js";
 import { AuthManager, AuthConfig, AuthMode } from "./auth.js";
-import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri } from "./constants.js";
+import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri, getDefaultGraphApiVersion } from "./constants.js";
 
 // Set up global fetch for the Microsoft Graph client
 (global as any).fetch = fetch;
@@ -23,6 +23,12 @@ logger.info("Starting Lokka Multi-Microsoft API MCP Server (v0.2.0 - Token-Based
 let authManager: AuthManager | null = null;
 let graphClient: Client | null = null;
 
+// Check USE_GRAPH_BETA environment variable
+const useGraphBeta = process.env.USE_GRAPH_BETA !== 'false'; // Default to true unless explicitly set to 'false'
+const defaultGraphApiVersion = getDefaultGraphApiVersion();
+
+logger.info(`Graph API default version: ${defaultGraphApiVersion} (USE_GRAPH_BETA=${process.env.USE_GRAPH_BETA || 'undefined'})`);
+
 server.tool(
   "Lokka-Microsoft",
   "A versatile tool to interact with Microsoft APIs including Microsoft Graph (Entra) and Azure Resource Management. IMPORTANT: For Graph API GET requests using advanced query parameters ($filter, $count, $search, $orderby), you are ADVISED to set 'consistencyLevel: \"eventual\"'.",
@@ -34,7 +40,7 @@ server.tool(
     subscriptionId: z.string().optional().describe("Azure Subscription ID (for Azure Resource Management)."),
     queryParams: z.record(z.string()).optional().describe("Query parameters for the request"),
     body: z.record(z.string(), z.any()).optional().describe("The request body (for POST, PUT, PATCH)"),
-    graphApiVersion: z.enum(["v1.0", "beta"]).optional().default("v1.0").describe("Microsoft Graph API version to use (default: v1.0)"),
+    graphApiVersion: z.enum(["v1.0", "beta"]).optional().default(defaultGraphApiVersion as "v1.0" | "beta").describe(`Microsoft Graph API version to use (default: ${defaultGraphApiVersion})`),
     fetchAll: z.boolean().optional().default(false).describe("Set to true to automatically fetch all pages for list results (e.g., users, groups). Default is false."),
     consistencyLevel: z.string().optional().describe("Graph API ConsistencyLevel header. ADVISED to be set to 'eventual' for Graph GET requests using advanced query parameters ($filter, $count, $search, $orderby)."),
   },
@@ -61,7 +67,10 @@ server.tool(
     fetchAll: boolean;
     consistencyLevel?: string;
   }) => {
-    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${graphApiVersion}, fetchAll=${fetchAll}, consistencyLevel=${consistencyLevel}`);
+    // Override graphApiVersion if USE_GRAPH_BETA is explicitly set to false
+    const effectiveGraphApiVersion = !useGraphBeta ? "v1.0" : graphApiVersion;
+    
+    logger.info(`Executing Lokka-Microsoft tool with params: apiType=${apiType}, path=${path}, method=${method}, graphApiVersion=${effectiveGraphApiVersion}, fetchAll=${fetchAll}, consistencyLevel=${consistencyLevel}`);
     let determinedUrl: string | undefined;
 
     try {
@@ -72,10 +81,10 @@ server.tool(
         if (!graphClient) {
           throw new Error("Graph client not initialized");
         }
-        determinedUrl = `https://graph.microsoft.com/${graphApiVersion}`; // For error reporting
+        determinedUrl = `https://graph.microsoft.com/${effectiveGraphApiVersion}`; // For error reporting
 
         // Construct the request using the Graph SDK client
-        let request = graphClient.api(path).version(graphApiVersion);
+        let request = graphClient.api(path).version(effectiveGraphApiVersion);
 
         // Add query parameters if provided and not empty
         if (queryParams && Object.keys(queryParams).length > 0) {
@@ -248,7 +257,7 @@ server.tool(
 
       // --- Format and Return Result ---
       // For all requests, format as text
-      let resultText = `Result for ${apiType} API (${apiType === 'graph' ? graphApiVersion : apiVersion}) - ${method} ${path}:\n\n`;
+      let resultText = `Result for ${apiType} API (${apiType === 'graph' ? effectiveGraphApiVersion : apiVersion}) - ${method} ${path}:\n\n`;
       resultText += JSON.stringify(responseData, null, 2); // responseData already contains the correct structure for fetchAll Graph case
 
       // Add pagination note if applicable (only for single page GET)
@@ -268,7 +277,7 @@ server.tool(
       // Try to determine the base URL even in case of error
       if (!determinedUrl) {
          determinedUrl = apiType === 'graph'
-           ? `https://graph.microsoft.com/${graphApiVersion}`
+           ? `https://graph.microsoft.com/${effectiveGraphApiVersion}`
            : "https://management.azure.com";
       }
       // Include error body if available from Graph SDK error

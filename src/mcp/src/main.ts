@@ -340,7 +340,7 @@ server.tool(
 
 server.tool(
   "get-auth-status",
-  "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session.",
+  "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session. Avoid calling this by default and only call this when you receive a sign in related error from Microsoft Graph.",
   {},
   async () => {
     try {
@@ -375,12 +375,11 @@ server.tool(
 // Add tool for requesting additional Graph permissions
 server.tool(
   "add-graph-permission",
-  "Request additional Microsoft Graph permission scopes by performing a fresh interactive sign-in. This tool only works in interactive authentication mode and will prompt the user to sign in again with the new scopes.",
+  "Request additional Microsoft Graph permission scopes by performing a fresh interactive sign-in. This tool only works in interactive authentication mode and should be used if any Graph API call returns permissions related errors.",
   {
-    scopes: z.array(z.string()).describe("Array of Microsoft Graph permission scopes to request (e.g., ['User.Read', 'Mail.ReadWrite', 'Directory.Read.All'])"),
-    forceRefresh: z.boolean().optional().default(true).describe("Force a fresh sign-in even if current token is valid (default: true)")
+    scopes: z.array(z.string()).describe("Array of Microsoft Graph permission scopes to request (e.g., ['User.Read', 'Mail.ReadWrite', 'Directory.Read.All'])")
   },
-  async ({ scopes, forceRefresh }) => {
+  async ({ scopes }) => {
     try {
       // Check if we're in interactive mode
       if (!authManager || authManager.getAuthMode() !== AuthMode.Interactive) {
@@ -455,14 +454,32 @@ server.tool(
       // Create a new interactive credential with the requested scopes
       const { InteractiveBrowserCredential, DeviceCodeCredential } = await import("@azure/identity");
       
+      // Clear any existing auth manager to force fresh authentication
+      authManager = null;
+      graphClient = null;
+      
+      // Request token with the new scopes - this will trigger interactive authentication
+      const scopeString = scopes.map(scope => `https://graph.microsoft.com/${scope}`).join(' ');
+      logger.info(`Requesting fresh token with scopes: ${scopeString}`);
+      
+      console.log(`\n🔐 Requesting Additional Graph Permissions:`);
+      console.log(`Scopes: ${scopes.join(', ')}`);
+      console.log(`You will be prompted to sign in to grant these permissions.\n`);
+
       let newCredential;
+      let tokenResponse;
+      
       try {
-        // Try Interactive Browser first
+        // Try Interactive Browser first - create fresh instance each time
         newCredential = new InteractiveBrowserCredential({
           tenantId: tenantId,
           clientId: clientId,
           redirectUri: redirectUri,
         });
+        
+        // Request token immediately after creating credential
+        tokenResponse = await newCredential.getToken(scopeString);
+        
       } catch (error) {
         // Fallback to Device Code flow
         logger.info("Interactive browser failed, falling back to device code flow");
@@ -477,13 +494,11 @@ server.tool(
             return Promise.resolve();
           },
         });
+        
+        // Request token with device code credential
+        tokenResponse = await newCredential.getToken(scopeString);
       }
 
-      // Request token with the new scopes
-      const scopeString = scopes.map(scope => `https://graph.microsoft.com/${scope}`).join(' ');
-      logger.info(`Requesting token with scopes: ${scopeString}`);
-
-      const tokenResponse = await newCredential.getToken(scopeString);
       if (!tokenResponse) {
         return {
           content: [{ 
@@ -494,7 +509,7 @@ server.tool(
         };
       }
 
-      // Update the auth manager with the new credential
+      // Create a completely new auth manager instance with the updated credential
       const authConfig: AuthConfig = {
         mode: AuthMode.Interactive,
         tenantId,
@@ -502,13 +517,14 @@ server.tool(
         redirectUri
       };
 
-      // Create a new auth manager instance with the updated credential
+      // Create a new auth manager instance
       authManager = new AuthManager(authConfig);
       
       // Manually set the credential to our new one with the additional scopes
       (authManager as any).credential = newCredential;
 
-      // Reinitialize the Graph client with the new token
+      // DO NOT call initialize() as it might interfere with our fresh token
+      // Instead, directly create the Graph client with the new credential
       const authProvider = authManager.getGraphAuthProvider();
       graphClient = Client.initWithMiddleware({
         authProvider: authProvider,
@@ -517,15 +533,16 @@ server.tool(
       // Get the token status to show the new scopes
       const tokenStatus = await authManager.getTokenStatus();
 
-      logger.info(`Successfully acquired token with additional scopes: ${scopes.join(', ')}`);
+      logger.info(`Successfully acquired fresh token with additional scopes: ${scopes.join(', ')}`);
 
       return {
         content: [{ 
           type: "text" as const, 
           text: JSON.stringify({
-            message: "Successfully acquired additional Microsoft Graph permissions",
+            message: "Successfully acquired additional Microsoft Graph permissions with fresh authentication",
             requestedScopes: scopes,
             tokenStatus: tokenStatus,
+            note: "A fresh sign-in was performed to ensure the new permissions are properly granted",
             timestamp: new Date().toISOString()
           }, null, 2)
         }],

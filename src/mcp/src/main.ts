@@ -340,7 +340,7 @@ server.tool(
 
 server.tool(
   "get-auth-status",
-  "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session. Avoid calling this by default and only call this when you receive a sign in related error from Microsoft Graph.",
+  "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session.",
   {},
   async () => {
     try {

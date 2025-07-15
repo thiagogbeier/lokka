@@ -339,13 +339,13 @@ server.tool(
 
 server.tool(
   "get-auth-status",
-  "Check the current authentication status and mode of the MCP Server",
+  "Check the current authentication status and mode of the MCP Server and also returns the current graph permission scopes of the access token for the current session.",
   {},
   async () => {
     try {
       const authMode = authManager?.getAuthMode() || "Not initialized";
       const isReady = authManager !== null;
-      const tokenStatus = authManager?.getTokenStatus();
+      const tokenStatus = authManager ? await authManager.getTokenStatus() : { isExpired: false };
       
       return {
         content: [{ 
@@ -354,7 +354,7 @@ server.tool(
             authMode,
             isReady,
             supportsTokenUpdates: authMode === AuthMode.ClientProvidedToken,
-            tokenStatus: tokenStatus || { isExpired: false },
+            tokenStatus: tokenStatus,
             timestamp: new Date().toISOString()
           }, null, 2)
         }],
@@ -364,6 +364,186 @@ server.tool(
         content: [{ 
           type: "text" as const, 
           text: `Error checking auth status: ${error.message}` 
+        }],
+        isError: true
+      };
+    }
+  }
+);
+
+// Add tool for requesting additional Graph permissions
+server.tool(
+  "add-graph-permission",
+  "Request additional Microsoft Graph permission scopes by performing a fresh interactive sign-in. This tool only works in interactive authentication mode and will prompt the user to sign in again with the new scopes.",
+  {
+    scopes: z.array(z.string()).describe("Array of Microsoft Graph permission scopes to request (e.g., ['User.Read', 'Mail.ReadWrite', 'Directory.Read.All'])"),
+    forceRefresh: z.boolean().optional().default(true).describe("Force a fresh sign-in even if current token is valid (default: true)")
+  },
+  async ({ scopes, forceRefresh }) => {
+    try {
+      // Check if we're in interactive mode
+      if (!authManager || authManager.getAuthMode() !== AuthMode.Interactive) {
+        const currentMode = authManager?.getAuthMode() || "Not initialized";
+        const clientId = process.env.CLIENT_ID;
+        
+        let errorMessage = `Error: add-graph-permission tool is only available in interactive authentication mode. Current mode: ${currentMode}.\n\n`;
+        
+        if (currentMode === AuthMode.ClientCredentials) {
+          errorMessage += `📋 To add permissions in Client Credentials mode:\n`;
+          errorMessage += `1. Open the Microsoft Entra admin center (https://entra.microsoft.com)\n`;
+          errorMessage += `2. Navigate to Applications > App registrations\n`;
+          errorMessage += `3. Find your application${clientId ? ` (Client ID: ${clientId})` : ''}\n`;
+          errorMessage += `4. Go to API permissions\n`;
+          errorMessage += `5. Click "Add a permission" and select Microsoft Graph\n`;
+          errorMessage += `6. Choose "Application permissions" and add the required scopes:\n`;
+          errorMessage += `   ${scopes.map(scope => `• ${scope}`).join('\n   ')}\n`;
+          errorMessage += `7. Click "Grant admin consent" to approve the permissions\n`;
+          errorMessage += `8. Restart the MCP server to use the new permissions`;
+        } else if (currentMode === AuthMode.ClientProvidedToken) {
+          errorMessage += `📋 To add permissions in Client Provided Token mode:\n`;
+          errorMessage += `1. Obtain a new access token that includes the required scopes:\n`;
+          errorMessage += `   ${scopes.map(scope => `• ${scope}`).join('\n   ')}\n`;
+          errorMessage += `2. When obtaining the token, ensure these scopes are included in the consent prompt\n`;
+          errorMessage += `3. Use the set-access-token tool to update the server with the new token\n`;
+          errorMessage += `4. The new token will include the additional permissions`;
+        } else {
+          errorMessage += `To use interactive permission requests, set USE_INTERACTIVE=true in environment variables and restart the server.`;
+        }
+        
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: errorMessage
+          }],
+          isError: true
+        };
+      }
+
+      // Validate scopes array
+      if (!scopes || scopes.length === 0) {
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: "Error: At least one permission scope must be specified." 
+          }],
+          isError: true
+        };
+      }
+
+      // Validate scope format (basic validation)
+      const invalidScopes = scopes.filter(scope => !scope.includes('.') || scope.trim() !== scope);
+      if (invalidScopes.length > 0) {
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: `Error: Invalid scope format detected: ${invalidScopes.join(', ')}. Scopes should be in format like 'User.Read' or 'Mail.ReadWrite'.` 
+          }],
+          isError: true
+        };
+      }
+
+      logger.info(`Requesting additional Graph permissions: ${scopes.join(', ')}`);
+
+      // Get current configuration
+      const tenantId = process.env.TENANT_ID;
+      const clientId = process.env.CLIENT_ID;
+      const redirectUri = process.env.REDIRECT_URI;
+
+      if (!tenantId || !clientId) {
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: "Error: TENANT_ID and CLIENT_ID environment variables are required for interactive authentication." 
+          }],
+          isError: true
+        };
+      }
+
+      // Create a new interactive credential with the requested scopes
+      const { InteractiveBrowserCredential, DeviceCodeCredential } = await import("@azure/identity");
+      
+      let newCredential;
+      try {
+        // Try Interactive Browser first
+        newCredential = new InteractiveBrowserCredential({
+          tenantId: tenantId,
+          clientId: clientId,
+          redirectUri: redirectUri || "http://localhost:3000",
+        });
+      } catch (error) {
+        // Fallback to Device Code flow
+        logger.info("Interactive browser failed, falling back to device code flow");
+        newCredential = new DeviceCodeCredential({
+          tenantId: tenantId,
+          clientId: clientId,
+          userPromptCallback: (info) => {
+            console.log(`\n🔐 Additional Permissions Required:`);
+            console.log(`Please visit: ${info.verificationUri}`);
+            console.log(`And enter code: ${info.userCode}`);
+            console.log(`Requested scopes: ${scopes.join(', ')}\n`);
+            return Promise.resolve();
+          },
+        });
+      }
+
+      // Request token with the new scopes
+      const scopeString = scopes.map(scope => `https://graph.microsoft.com/${scope}`).join(' ');
+      logger.info(`Requesting token with scopes: ${scopeString}`);
+
+      const tokenResponse = await newCredential.getToken(scopeString);
+      if (!tokenResponse) {
+        return {
+          content: [{ 
+            type: "text" as const, 
+            text: "Error: Failed to acquire access token with the requested scopes. Please check your permissions and try again." 
+          }],
+          isError: true
+        };
+      }
+
+      // Update the auth manager with the new credential
+      const authConfig: AuthConfig = {
+        mode: AuthMode.Interactive,
+        tenantId,
+        clientId,
+        redirectUri
+      };
+
+      // Create a new auth manager instance with the updated credential
+      authManager = new AuthManager(authConfig);
+      
+      // Manually set the credential to our new one with the additional scopes
+      (authManager as any).credential = newCredential;
+
+      // Reinitialize the Graph client with the new token
+      const authProvider = authManager.getGraphAuthProvider();
+      graphClient = Client.initWithMiddleware({
+        authProvider: authProvider,
+      });
+
+      // Get the token status to show the new scopes
+      const tokenStatus = await authManager.getTokenStatus();
+
+      logger.info(`Successfully acquired token with additional scopes: ${scopes.join(', ')}`);
+
+      return {
+        content: [{ 
+          type: "text" as const, 
+          text: JSON.stringify({
+            message: "Successfully acquired additional Microsoft Graph permissions",
+            requestedScopes: scopes,
+            tokenStatus: tokenStatus,
+            timestamp: new Date().toISOString()
+          }, null, 2)
+        }],
+      };
+
+    } catch (error: any) {
+      logger.error("Error requesting additional Graph permissions:", error);
+      return {
+        content: [{ 
+          type: "text" as const, 
+          text: `Error requesting additional permissions: ${error.message}` 
         }],
         isError: true
       };

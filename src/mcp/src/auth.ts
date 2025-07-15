@@ -1,9 +1,41 @@
 import { AccessToken, TokenCredential, ClientSecretCredential, ClientCertificateCredential, InteractiveBrowserCredential, DeviceCodeCredential, DeviceCodeInfo } from "@azure/identity";
 import { AuthenticationProvider } from "@microsoft/microsoft-graph-client";
+import jwt from "jsonwebtoken";
 import { logger } from "./logger.js";
 
 // Constants
 const ONE_HOUR_IN_MS = 60 * 60 * 1000; // One hour in milliseconds
+
+// Helper function to parse JWT and extract scopes
+function parseJwtScopes(token: string): string[] {
+  try {
+    // Decode JWT without verifying signature (we trust the token from Azure Identity)
+    const decoded = jwt.decode(token) as any;
+    
+    if (!decoded || typeof decoded !== 'object') {
+      logger.info("Failed to decode JWT token");
+      return [];
+    }
+
+    // Extract scopes from the 'scp' claim (space-separated string)
+    const scopesString = decoded.scp;
+    if (typeof scopesString === 'string') {
+      return scopesString.split(' ').filter(scope => scope.length > 0);
+    }
+
+    // Some tokens might have roles instead of scopes
+    const roles = decoded.roles;
+    if (Array.isArray(roles)) {
+      return roles;
+    }
+
+    logger.info("No scopes found in JWT token");
+    return [];
+  } catch (error) {
+    logger.error("Error parsing JWT token for scopes", error);
+    return [];
+  }
+}
 
 // Simple authentication provider that works with Azure Identity TokenCredential
 export class TokenCredentialAuthProvider implements AuthenticationProvider {
@@ -58,6 +90,11 @@ export class ClientProvidedTokenCredential implements TokenBasedCredential {
 
   getExpirationTime(): Date {
     return this.expiresOn || new Date(0);
+  }
+
+  // Getter for access token (for internal use by AuthManager)
+  getAccessToken(): string | undefined {
+    return this.accessToken;
   }
 }
 
@@ -218,13 +255,48 @@ export class AuthManager {
     return this.config.mode === AuthMode.Interactive;
   }
 
-  getTokenStatus(): { isExpired: boolean; expiresOn?: Date } {
+  async getTokenStatus(): Promise<{ isExpired: boolean; expiresOn?: Date; scopes?: string[] }> {
     if (this.credential instanceof ClientProvidedTokenCredential) {
-      return {
+      const tokenStatus = {
         isExpired: this.credential.isExpired(),
         expiresOn: this.credential.getExpirationTime()
       };
+
+      // If we have a valid token, parse it to extract scopes
+      if (!tokenStatus.isExpired) {
+        const accessToken = this.credential.getAccessToken();
+        if (accessToken) {
+          try {
+            const scopes = parseJwtScopes(accessToken);
+            return {
+              ...tokenStatus,
+              scopes: scopes
+            };
+          } catch (error) {
+            logger.error("Error parsing token scopes in getTokenStatus", error);
+            return tokenStatus;
+          }
+        }
+      }
+
+      return tokenStatus;
+    } else if (this.credential) {
+      // For other credential types, try to get a fresh token and parse it
+      try {
+        const accessToken = await this.credential.getToken("https://graph.microsoft.com/.default");
+        if (accessToken && accessToken.token) {
+          const scopes = parseJwtScopes(accessToken.token);
+          return {
+            isExpired: false,
+            expiresOn: new Date(accessToken.expiresOnTimestamp),
+            scopes: scopes
+          };
+        }
+      } catch (error) {
+        logger.error("Error getting token for scope parsing", error);
+      }
     }
+    
     return { isExpired: false };
   }
 }

@@ -29,16 +29,17 @@ Once the app is created and you've added a certificate you can configure the cer
 
 ```json
 {
-    "Lokka-Microsoft": {
-      "command": "npx",
-      "args": ["-y", "@merill/lokka"],
-      "env": {
-        "TENANT_ID": "<tenant-id>",
-        "CLIENT_ID": "<client-id>",
-        "CERTIFICATE_PATH": "/path/to/certificate.pem",
-        "CERTIFICATE_PASSWORD": "<optional-certificate-password>",
-        "USE_CERTIFICATE": "true"
-      }
+  "Lokka-Microsoft": {
+    "command": "npx",
+    "args": ["-y", "@merill/lokka"],
+    "env": {
+      "TENANT_ID": "<tenant-id>",
+      "CLIENT_ID": "<client-id>",
+      "CERTIFICATE_PATH": "/path/to/certificate.pem",
+      "CERTIFICATE_PASSWORD": "<optional-certificate-password>",
+      "USE_CERTIFICATE": "true"
+    }
+  }
 }
 ```
 
@@ -62,16 +63,14 @@ You can now configure Lokka in VSCode, Claude using the config below.
 
 ```json
 {
-    "Lokka-Microsoft": {
-      "command": "npx",
-      "args": ["-y", "@merill/lokka"],
-      "env": {
-        "TENANT_ID": "<tenant-id>",
-        "CLIENT_ID": "<client-id>",
-        "CERTIFICATE_PATH": "/path/to/certificate.pem",
-        "CERTIFICATE_PASSWORD": "<optional-certificate-password>",
-        "USE_CERTIFICATE": "true"
-      }
+  "Lokka-Microsoft": {
+    "command": "npx",
+    "args": ["-y", "@merill/lokka"],
+    "env": {
+      "TENANT_ID": "<tenant-id>",
+      "CLIENT_ID": "<client-id>",
+      "CLIENT_SECRET": "<client-secret>"
     }
+  }
 }
 ```

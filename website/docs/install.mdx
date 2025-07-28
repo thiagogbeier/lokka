@@ -80,29 +80,19 @@ GitHub Copilot Agent in VS Code is another great option.
 
 - In VS Code, open the Command Palette by pressing `Ctrl + Shift +P` (or `Cmd + Shift + P` on Mac).
 - Type `MCP: Add` and select `MCP: Add Server...`
-- Select `NPM Package`
-  - Package name: `@merill/lokka`
-  - Select `Allow`
-- Where to save configuration: `User Settings`
+- Select `Command (stdio)`
+- Command:
+  - Windows: `cmd /c npx -y @merill/lokka`
+  - macOS/Linux: `npx -y @merill/lokka`
+- Name: `Lokka-Microsoft`
+- Where to install: `Global`
 - This will open the `settings.json` file in VS Code.
 - `File` > `Save` to save the file.
 - Once you hit save, you should see a browser window open and prompt you to sign into your Microsoft tenant.
 
-<details>
-<summary>❗ Additional configuration on Windows (click to expand)</summary>
+### Starting the MCP server manually
 
-Update the settings.json file and change the command and args parameters as shown below.
-```json {4,5}
-{
-  "mcp.servers": {
-    "Lokka-Microsoft": {
-      "command": "cmd",
-      "args": ["/c", "npx", "-y", "@merill/lokka"]
-    }
-  }
-}
-```
-</details>
+Typically VSCode will automatically start the MCP server when needed, but you can also stop and start the MCP server manually.
 
 - Open the Command Palette again (`Ctrl + Shift +P`) and type `MCP` and select `MCP: List Servers`
 - Select `Lokka-Microsoft` from the list of servers.

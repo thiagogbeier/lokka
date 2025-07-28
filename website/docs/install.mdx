@@ -78,17 +78,41 @@ GitHub Copilot Agent in VS Code is another great option.
 
 ### Add Lokka to GitHub Copilot
 
-- In VS Code, open the Command Palette by pressing `Ctrl + Shift +P` (or `Cmd + Shift + P` on Mac).
-- Type `MCP: Add` and select `MCP: Add Server...`
-- Select `Command (stdio)`
-- Command:
-  - Windows: `cmd /c npx -y @merill/lokka`
-  - macOS/Linux: `npx -y @merill/lokka`
-- Name: `Lokka-Microsoft`
-- Where to install: `Global`
-- This will open the `settings.json` file in VS Code.
-- `File` > `Save` to save the file.
-- Once you hit save, you should see a browser window open and prompt you to sign into your Microsoft tenant.
+<Tabs>
+  <TabItem value="oneClickInstall" label="One Click Install" default>
+  * Start **VS Code** and then click the button below to install Lokka in VS Code.
+  * If your browser prompts you to open VS Code, click **Open**.
+  * In the VS Code **Lokka-Microsoft** install page 
+    * Click **Install**.
+    * Click the widget icon next to the button and select **Start Server**.
+  * This will open a browser window and prompt you to sign into your Microsoft tenant. 
+
+  | Platform | VS Code | VS Code Insiders |
+  | - | - | - |
+  | Windows | [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Lokka_for_Windows-0098FF?style=flat-square&logo=visualstudiocode&logoColor=ffffff)](vscode:mcp/install?%7B%22name%22%3A%22Lokka-Microsoft%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22cmd%22%2C%22args%22%3A%5B%22%2Fc%22%2C%22npx%22%2C%22-y%22%2C%22%40merill%2Flokka%22%5D%7D) | [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Lokka_for_Windows-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=ffffff)](vscode-insiders:mcp/install?%7B%22name%22%3A%22Lokka-Microsoft%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22cmd%22%2C%22args%22%3A%5B%22%2Fc%22%2C%22npx%22%2C%22-y%22%2C%22%40merill%2Flokka%22%5D%7D) |
+  | macOS/Linux | [![Install in VS Code](https://img.shields.io/badge/VS_Code-Install_Lokka_for_macOS_%26_Linux-0098FF?style=flat-square&logo=visualstudiocode&logoColor=ffffff)](vscode:mcp/install?%7B%22name%22%3A%22Lokka-Microsoft%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40merill%2Flokka%22%5D%7D) | [![Install in VS Code Insiders](https://img.shields.io/badge/VS_Code_Insiders-Install_Lokka_for_macOS_%26_Linux-24bfa5?style=flat-square&logo=visualstudiocode&logoColor=ffffff)](vscode-insiders:mcp/install?%7B%22name%22%3A%22Lokka-Microsoft%22%2C%22type%22%3A%22stdio%22%2C%22command%22%3A%22npx%22%2C%22args%22%3A%5B%22-y%22%2C%22%40merill%2Flokka%22%5D%7D) |
+
+:::note
+  If VS Code was not running when you clicked the button, you might need to click the button on this page again to install Lokka.
+:::
+
+  </TabItem>
+
+  <TabItem value="manualInstall" label="Manual Install" default>
+
+    - In VS Code, open the Command Palette by pressing `Ctrl + Shift +P` (or `Cmd + Shift + P` on Mac).
+    - Type `MCP: Add` and select `MCP: Add Server...`
+    - Select `Command (stdio)`
+    - Command:
+      - Windows: `cmd /c npx -y @merill/lokka`
+      - macOS/Linux: `npx -y @merill/lokka`
+    - Name: `Lokka-Microsoft`
+    - Where to install: `Global`
+    - This will open the `settings.json` file in VS Code.
+    - `File` > `Save` to save the file.
+    - Once you hit save, you should see a browser window open and prompt you to sign into your Microsoft tenant.
+  </TabItem>
+</Tabs>
 
 ### Starting the MCP server manually
 
@@ -99,14 +123,14 @@ Typically VSCode will automatically start the MCP server when needed, but you ca
 - Selet `Start Server`
 - This will start the Lokka server 
 - Each time you hit Start you will see a browser window open and prompt you to sign into your Microsoft tenant.
-
+  - If you want to stay connected to the same tenant, you can use [AppApp-only authentication](/docs/install-advanced/app-only-auth).
 ### Testing the agent
 
 - Start a new instance of VS Code (File > New Window)
 - Open `Chat` from `View` → `Chat`
 - At the bottom of the Chat panel (below the chat box)
   - Select `Agent` (if it is showing `Ask` or `Edit`)
-  - Select `Claude Sonnet 3.7` or above (if it is showing `GPT-40`)
+  - Select `Claude Sonnet 4` or above (if it is showing `GPT-40`)
 
 - Now you can start querying your Microsoft tenant using the Lokka agent tool.
 - Some sample queries you can try are:
@@ -114,5 +138,9 @@ Typically VSCode will automatically start the MCP server when needed, but you ca
   - `Show me the details for John Doe`
   - `Change John's department to IT` - Needs User.ReadWrite.All permission to be granted
   - `How many VMs do I have in my subscription?` - Needs Reader permission to be granted to the Azure subscription
+
+:::note
+  If the chat prompts you to install VS GitHub Copilot for Azure, click the **rerun without** link to continue using Lokka.
+::: 
 </TabItem>
 </Tabs>

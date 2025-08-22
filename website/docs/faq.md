@@ -39,7 +39,7 @@ No, Lokka is not a Microsoft product and is not affiliated with Microsoft.
 
 ## How do I report issues?
 
-If you encounter any issues or have suggestions for improvements, please open an issue on the [GitHub repository](https://github.com/merill/lokka/issues].
+If you encounter any issues or have suggestions for improvements, please open an issue on the [GitHub repository](https://github.com/merill/lokka/issues).
 
 ## I'm seeing this error message, what should I do?
 

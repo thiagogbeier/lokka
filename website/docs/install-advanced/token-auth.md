@@ -56,7 +56,7 @@ In addition, access token are short-lived (typically 1 hour) and will need to be
 az login
 
 # Get a token for Microsoft Graph
-az account get-access-token --resource https://graph.microsowft.com --query accessToken -o tsv
+az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv
 ```
 
 ### Option 3: Graph PowerShell

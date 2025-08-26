@@ -25,7 +25,7 @@ Lokka is not a replacement for Copilot and is not affiliated with Microsoft.
 
 ## Can I use this in production?
 
-We recommend using Lokka in a test environment for exploration and testing purposes. The aim of this project is to provide a playground to expirement with using LLMs for Microsoft 365 administration tasks.
+We recommend using Lokka in a test environment for exploration and testing purposes. The aim of this project is to provide a playground to experiment with using LLMs for Microsoft 365 administration tasks.
 
 :::note
 
@@ -45,4 +45,4 @@ If you encounter any issues or have suggestions for improvements, please open an
 
 ### TypeError `[ERR_INVALID_ARG_TYPE]`: The "path" argument must be of type string. Received undefined
 
-Make sure you have the the latest version of Node.js installed (v22.10.0 or higher). See [MCP Sever issues](https://github.com/merill/lokka/issues/3) for other tips.
+Make sure you have the latest version of Node.js installed (v22.10.0 or higher). See [MCP Server issues](https://github.com/merill/lokka/issues/3) for other tips.

@@ -1,11 +1,11 @@
 {
-  "name": "@merill/lokka",
-  "version": "0.3.0",
+  "name": "@thiagobeier/lokka",
+  "version": "0.3.1",
   "description": "Lokka is a Model Context Protocol (MCP) server for Microsoft Graph.",
   "license": "MIT",
-  "author": "Merill",
-  "homepage": "https://lokka.dev",
-  "bugs": "https://github.com/merill/lokka/issues",
+  "author": "Thiago Beier",
+  "homepage": "https://github.com/thiagogbeier/lokka",
+  "bugs": "https://github.com/thiagogbeier/lokka/issues",
   "main": "main.js",
   "type": "module",
   "keywords": [
@@ -19,7 +19,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/merill/lokka.git",
+    "url": "git+https://github.com/thiagogbeier/lokka.git",
     "directory": "src/mcp"
   },
   "bin": {

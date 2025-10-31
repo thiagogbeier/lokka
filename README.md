@@ -198,6 +198,15 @@ See the docs for more information on how to install and configure Lokka.
    - Check the current authentication status and mode of the MCP Server
    - Returns: Authentication mode, readiness status, and capabilities
 
+4. `get-recent-groups` *(New in v0.3.0)*
+   - Query groups created within a specified time period (default: past week)
+   - Input:
+     - `daysAgo` (number, optional): Number of days to look back from today (default: 7 days)
+     - `fetchAll` (boolean, optional): Automatically fetch all pages (default: true)
+     - `includeAllFields` (boolean, optional): Include all group properties or just key fields (default: false)
+   - Returns: List of groups created within the specified time period with their details
+   - Example usage: "Show me all groups created in the past week" or "List groups created in the last 3 days"
+
 ### Environment Variables
 
 The configuration of the server is done using environment variables. The following environment variables are supported:

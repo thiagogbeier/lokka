@@ -490,7 +490,7 @@ server.tool("get-recent-groups", "Query groups created within a specified time p
         }
         // Calculate the date threshold (daysAgo days ago from now)
         const thresholdDate = new Date();
-        thresholdDate.setDate(thresholdDate.getDate() - daysAgo);
+        thresholdDate.setTime(thresholdDate.getTime() - (daysAgo * 24 * 60 * 60 * 1000));
         const isoThresholdDate = thresholdDate.toISOString();
         // Build the filter query
         const filterQuery = `createdDateTime ge ${isoThresholdDate}`;
@@ -535,9 +535,10 @@ server.tool("get-recent-groups", "Query groups created within a specified time p
             responseData.count = responseData.value?.length || 0;
         }
         // Format the result
-        let resultText = `Groups created in the past ${daysAgo} day(s):\n\n`;
+        const dayLabel = daysAgo === 1 ? 'day' : 'days';
+        let resultText = `Groups created in the past ${daysAgo} ${dayLabel}:\n\n`;
         resultText += `Query: ${filterQuery}\n`;
-        resultText += `Threshold Date: ${thresholdDate.toISOString()}\n`;
+        resultText += `Threshold Date: ${isoThresholdDate}\n`;
         resultText += `Total Groups Found: ${responseData.count}\n\n`;
         resultText += JSON.stringify(responseData, null, 2);
         if (!fetchAll && responseData['@odata.nextLink']) {

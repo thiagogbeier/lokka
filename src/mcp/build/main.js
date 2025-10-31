@@ -477,6 +477,93 @@ server.tool("add-graph-permission", "Request additional Microsoft Graph permissi
         };
     }
 });
+// Add tool for querying recently created groups
+server.tool("get-recent-groups", "Query groups created within a specified time period (default: past week). This is a convenience tool that uses Microsoft Graph's filter capabilities to find recently created groups.", {
+    daysAgo: z.number().optional().default(7).describe("Number of days to look back from today (default: 7 days for past week)"),
+    fetchAll: z.boolean().optional().default(true).describe("Set to true to automatically fetch all pages. Default is true."),
+    includeAllFields: z.boolean().optional().default(false).describe("Set to true to include all group properties. Default is false (returns id, displayName, createdDateTime, description, groupTypes, mail)."),
+}, async ({ daysAgo, fetchAll, includeAllFields }) => {
+    try {
+        logger.info(`Querying groups created in the past ${daysAgo} days`);
+        if (!graphClient) {
+            throw new Error("Graph client not initialized");
+        }
+        // Calculate the date threshold (daysAgo days ago from now)
+        const thresholdDate = new Date();
+        thresholdDate.setDate(thresholdDate.getDate() - daysAgo);
+        const isoThresholdDate = thresholdDate.toISOString();
+        // Build the filter query
+        const filterQuery = `createdDateTime ge ${isoThresholdDate}`;
+        // Build query parameters
+        const queryParams = {
+            '$filter': filterQuery,
+            '$orderby': 'createdDateTime desc'
+        };
+        // Add select clause to limit fields if not requesting all fields
+        if (!includeAllFields) {
+            queryParams['$select'] = 'id,displayName,createdDateTime,description,groupTypes,mail';
+        }
+        // Use the Graph SDK to query groups
+        let request = graphClient.api('/groups')
+            .version(useGraphBeta ? "beta" : "v1.0")
+            .query(queryParams)
+            .header('ConsistencyLevel', 'eventual');
+        let responseData;
+        if (fetchAll) {
+            logger.info(`Fetching all pages for groups created after ${isoThresholdDate}`);
+            // Fetch the first page
+            const firstPageResponse = await request.get();
+            const odataContext = firstPageResponse['@odata.context'];
+            let allItems = firstPageResponse.value || [];
+            // Create a PageIterator to get all pages
+            const callback = (item) => {
+                allItems.push(item);
+                return true;
+            };
+            const pageIterator = new PageIterator(graphClient, firstPageResponse, callback);
+            await pageIterator.iterate();
+            responseData = {
+                '@odata.context': odataContext,
+                value: allItems,
+                count: allItems.length
+            };
+            logger.info(`Found ${allItems.length} groups created in the past ${daysAgo} days`);
+        }
+        else {
+            logger.info(`Fetching single page for groups created after ${isoThresholdDate}`);
+            responseData = await request.get();
+            responseData.count = responseData.value?.length || 0;
+        }
+        // Format the result
+        let resultText = `Groups created in the past ${daysAgo} day(s):\n\n`;
+        resultText += `Query: ${filterQuery}\n`;
+        resultText += `Threshold Date: ${thresholdDate.toISOString()}\n`;
+        resultText += `Total Groups Found: ${responseData.count}\n\n`;
+        resultText += JSON.stringify(responseData, null, 2);
+        if (!fetchAll && responseData['@odata.nextLink']) {
+            resultText += `\n\nNote: More results are available. Set 'fetchAll: true' to retrieve all pages.`;
+        }
+        return {
+            content: [{ type: "text", text: resultText }],
+        };
+    }
+    catch (error) {
+        logger.error(`Error querying recent groups:`, error);
+        const errorBody = error.body ? (typeof error.body === 'string' ? error.body : JSON.stringify(error.body)) : 'N/A';
+        return {
+            content: [{
+                    type: "text",
+                    text: JSON.stringify({
+                        error: error instanceof Error ? error.message : String(error),
+                        statusCode: error.statusCode || 'N/A',
+                        errorBody: errorBody,
+                        suggestion: "Ensure the authenticated user/app has the required permissions to read groups (Group.Read.All or Group.ReadWrite.All)"
+                    }),
+                }],
+            isError: true
+        };
+    }
+});
 // Start the server with stdio transport
 async function main() {
     // Determine authentication mode based on environment variables

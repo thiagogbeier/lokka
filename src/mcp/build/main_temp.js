@@ -540,11 +540,6 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
         }
         else {
             // OneDrive for Business
-            // Check authentication mode to determine if we can use /me
-            const authMode = authManager?.getAuthMode();
-            if (authMode === 'client_credentials' && !userPrincipalName) {
-                throw new Error("OneDrive access in client credentials mode requires userPrincipalName parameter. Please specify the user's UPN (e.g., 'user@company.com')");
-            }
             const userPart = userPrincipalName ? `/users/${userPrincipalName}` : "/me";
             const folder = folderPath || "";
             targetPath = `${userPart}/drive/root:${folder}/${fullFileName}:/content`;
@@ -556,17 +551,8 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
             // Get authenticated user info to avoid "sharepoint app" showing as creator
             let userDisplayName = "Lokka MCP Server";
             try {
-                const authMode = authManager?.getAuthMode();
-                if (authMode === 'client_credentials' && userPrincipalName) {
-                    // For client credentials, get user info using their UPN
-                    const userInfo = await graphClient.api(`/users/${userPrincipalName}`).select("displayName").get();
-                    userDisplayName = userInfo.displayName || userDisplayName;
-                }
-                else if (authMode !== 'client_credentials') {
-                    // For delegated auth, we can use /me
-                    const userInfo = await graphClient.api("/me").select("displayName").get();
-                    userDisplayName = userInfo.displayName || userDisplayName;
-                }
+                const userInfo = await graphClient.api("/me").select("displayName").get();
+                userDisplayName = userInfo.displayName || userDisplayName;
             }
             catch (error) {
                 logger.info("Could not retrieve user info for Word document, using default creator name");
@@ -848,7 +834,7 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
 </a:theme>`);
             zip.file("docProps/app.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
-  <Application>Microsoft Office Excel</Application>
+  <Application>Lokka MCP Server</Application>
   <DocSecurity>0</DocSecurity>
   <ScaleCrop>false</ScaleCrop>
   <SharedDoc>false</SharedDoc>
@@ -858,7 +844,6 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
             zip.file("docProps/core.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <dc:creator>${userDisplayName}</dc:creator>
-  <cp:lastModifiedBy>${userDisplayName}</cp:lastModifiedBy>
   <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
   <dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified>
 </cp:coreProperties>`);
@@ -1191,7 +1176,7 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
 </a:theme>`);
             zip.file("docProps/app.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties">
-  <Application>Microsoft Office Excel</Application>
+  <Application>Lokka MCP Server</Application>
   <DocSecurity>0</DocSecurity>
   <ScaleCrop>false</ScaleCrop>
   <SharedDoc>false</SharedDoc>
@@ -1201,7 +1186,6 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
             zip.file("docProps/core.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <dc:creator>${userDisplayName}</dc:creator>
-  <cp:lastModifiedBy>${userDisplayName}</cp:lastModifiedBy>
   <dcterms:created xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:created>
   <dcterms:modified xsi:type="dcterms:W3CDTF">${new Date().toISOString()}</dcterms:modified>
 </cp:coreProperties>`);
@@ -1217,50 +1201,16 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
             excel: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             powerpoint: 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
         };
-        // ULTIMATE FIX: Use Microsoft's template creation method that preserves user attribution
-        // This is the ONLY way to avoid "SharePoint App" showing as creator
-        let uploadResponse;
-        // Build create-from-template path
-        const createPath = location === "sharepoint"
-            ? `/sites/${sitePath?.replace(/^\/sites\//, '')}/drive/root:/${libraryName || 'Shared Documents'}${folderPath || ''}:/children`
-            : userPrincipalName
-                ? `/users/${userPrincipalName}/drive/root:${folderPath || ''}:/children`
-                : `/me/drive/root:${folderPath || ''}:/children`;
-        try {
-            // Method 1: Create file using POST to children endpoint (preserves user context)
-            uploadResponse = await graphClient
-                .api(createPath)
-                .post({
-                name: fullFileName,
-                file: {},
-                '@microsoft.graph.conflictBehavior': 'rename'
-            });
-            // Now upload the actual content to the created file
-            const contentPath = location === "sharepoint"
-                ? `/sites/${sitePath?.replace(/^\/sites\//, '')}/drive/items/${uploadResponse.id}/content`
-                : userPrincipalName
-                    ? `/users/${userPrincipalName}/drive/items/${uploadResponse.id}/content`
-                    : `/me/drive/items/${uploadResponse.id}/content`;
-            await graphClient
-                .api(contentPath)
-                .header('Content-Type', contentTypes[fileType])
-                .put(fileBuffer);
-            logger.info(`SUCCESS: Created ${fileType} file using children endpoint - should preserve user context!`);
-        }
-        catch (createError) {
-            logger.info("Children endpoint failed, using direct upload:", createError);
-            // Method 2: Fallback to direct upload (will show SharePoint App)
-            uploadResponse = await graphClient
-                .api(targetPath)
-                .header('Content-Type', contentTypes[fileType])
-                .put(fileBuffer);
-            logger.info(`Fallback: Used direct upload - may show SharePoint App as creator`);
-        }
+        const uploadResponse = await graphClient
+            .api(targetPath)
+            .header('Content-Type', contentTypes[fileType])
+            .put(fileBuffer);
+        logger.info(`Successfully created and uploaded ${fileType} file: ${fullFileName}`);
         return {
             content: [{
                     type: "text",
                     text: JSON.stringify({
-                        message: `Successfully created ${fileType} file with proper user attribution`,
+                        message: `Successfully created ${fileType} file using direct upload method`,
                         fileName: fullFileName,
                         location: location,
                         fileId: uploadResponse.id,
@@ -1269,8 +1219,8 @@ server.tool("create-office-file", "Create Microsoft Office files (Word, Excel, P
                         size: uploadResponse.size,
                         createdDateTime: uploadResponse.createdDateTime,
                         lastModifiedDateTime: uploadResponse.lastModifiedDateTime,
-                        method: "Direct file upload with metadata correction",
-                        note: `Fresh empty ${fileType.toUpperCase()} file created with proper user attribution (not SharePoint App)`
+                        method: "Direct file upload with proper content",
+                        note: `Fresh empty ${fileType.toUpperCase()} file created with proper OpenXML format`
                     }, null, 2)
                 }]
         };

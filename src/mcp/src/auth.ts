@@ -166,27 +166,18 @@ export class AuthManager {
         
         logger.info(`Initializing Interactive authentication with tenant ID: ${tenantId}, client ID: ${clientId}`);
         
-        try {
-          // Try Interactive Browser first
-          this.credential = new InteractiveBrowserCredential({
-            tenantId: tenantId,
-            clientId: clientId,
-            redirectUri: this.config.redirectUri || LokkaDefaultRedirectUri,
-          });
-        } catch (error) {
-          // Fallback to Device Code flow
-          logger.info("Interactive browser failed, falling back to device code flow");
-          this.credential = new DeviceCodeCredential({
-            tenantId: tenantId,
-            clientId: clientId,
-            userPromptCallback: (info: DeviceCodeInfo) => {
-              console.log(`\n🔐 Authentication Required:`);
-              console.log(`Please visit: ${info.verificationUri}`);
-              console.log(`And enter code: ${info.userCode}\n`);
-              return Promise.resolve();
-            },
-          });
-        }
+        // Use Device Code flow by default to avoid redirect URI issues
+        logger.info("Using device code flow to avoid redirect URI configuration issues");
+        this.credential = new DeviceCodeCredential({
+          tenantId: tenantId,
+          clientId: clientId,
+          userPromptCallback: (info: DeviceCodeInfo) => {
+            console.log(`\n🔐 Authentication Required:`);
+            console.log(`Please visit: ${info.verificationUri}`);
+            console.log(`And enter code: ${info.userCode}\n`);
+            return Promise.resolve();
+          },
+        });
         break;
 
       default:

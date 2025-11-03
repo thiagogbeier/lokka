@@ -1,7 +1,7 @@
-import { ClientSecretCredential, ClientCertificateCredential, InteractiveBrowserCredential, DeviceCodeCredential } from "@azure/identity";
+import { ClientSecretCredential, ClientCertificateCredential, DeviceCodeCredential } from "@azure/identity";
 import jwt from "jsonwebtoken";
 import { logger } from "./logger.js";
-import { LokkaClientId, LokkaDefaultTenantId, LokkaDefaultRedirectUri } from "./constants.js";
+import { LokkaClientId, LokkaDefaultTenantId } from "./constants.js";
 // Constants
 const ONE_HOUR_IN_MS = 60 * 60 * 1000; // One hour in milliseconds
 // Helper function to parse JWT and extract scopes
@@ -124,28 +124,18 @@ export class AuthManager {
                 const tenantId = this.config.tenantId || LokkaDefaultTenantId;
                 const clientId = this.config.clientId || LokkaClientId;
                 logger.info(`Initializing Interactive authentication with tenant ID: ${tenantId}, client ID: ${clientId}`);
-                try {
-                    // Try Interactive Browser first
-                    this.credential = new InteractiveBrowserCredential({
-                        tenantId: tenantId,
-                        clientId: clientId,
-                        redirectUri: this.config.redirectUri || LokkaDefaultRedirectUri,
-                    });
-                }
-                catch (error) {
-                    // Fallback to Device Code flow
-                    logger.info("Interactive browser failed, falling back to device code flow");
-                    this.credential = new DeviceCodeCredential({
-                        tenantId: tenantId,
-                        clientId: clientId,
-                        userPromptCallback: (info) => {
-                            console.log(`\n🔐 Authentication Required:`);
-                            console.log(`Please visit: ${info.verificationUri}`);
-                            console.log(`And enter code: ${info.userCode}\n`);
-                            return Promise.resolve();
-                        },
-                    });
-                }
+                // Use Device Code flow by default to avoid redirect URI issues
+                logger.info("Using device code flow to avoid redirect URI configuration issues");
+                this.credential = new DeviceCodeCredential({
+                    tenantId: tenantId,
+                    clientId: clientId,
+                    userPromptCallback: (info) => {
+                        console.log(`\n🔐 Authentication Required:`);
+                        console.log(`Please visit: ${info.verificationUri}`);
+                        console.log(`And enter code: ${info.userCode}\n`);
+                        return Promise.resolve();
+                    },
+                });
                 break;
             default:
                 throw new Error(`Unsupported authentication mode: ${this.config.mode}`);

@@ -4,7 +4,7 @@
 param(
     [string]$ResourceGroup = "rg-lokka-mcp",
     [string]$ContainerAppName = "lokka-mcp",
-    [string]$RegistryName = "lokkamcp",
+    [string]$RegistryName = "acrlokka1761746532",
     [string]$ImageTag = "latest"
 )
 

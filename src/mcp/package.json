@@ -1,6 +1,6 @@
 {
 	"name": "@thiagobeier/lokka",
-	"version": "0.3.1",
+	"version": "0.4.0",
 	"description": "Lokka is a Model Context Protocol (MCP) server for Microsoft Graph.",
 	"license": "MIT",
 	"author": "Thiago Beier",
@@ -37,7 +37,11 @@
 		"dev:rest": "tsc && node build/rest-wrapper.js",
 		"docker:build": "pwsh -File docker-build.ps1",
 		"azure:deploy": "pwsh -File azure-deploy.ps1",
-		"deploy": "pwsh -File deploy.ps1"
+		"deploy": "pwsh -File deploy.ps1",
+		"publish:dry": "pwsh -File publish.ps1 -DryRun",
+		"publish:patch": "pwsh -File publish.ps1 -VersionBump patch",
+		"publish:minor": "pwsh -File publish.ps1 -VersionBump minor",
+		"publish:major": "pwsh -File publish.ps1 -VersionBump major"
 	},
 	"files": [
 		"build"

@@ -59,7 +59,7 @@ try {
         --resource-group $ResourceGroup `
         --image "$RegistryName.azurecr.io/lokka-rest-wrapper:$ImageTag" `
         --set-env-vars `
-        AUTH_MODE=token `
+        AUTH_MODE=client_credentials `
         PORT=3000 `
         MCP_SERVER_PATH=./build/main.js
     

@@ -16,7 +16,7 @@ COPY build ./build
 # Set environment variables
 ENV PORT=3000
 ENV NODE_ENV=production
-ENV AUTH_MODE=token
+ENV AUTH_MODE=client_credentials
 ENV MCP_SERVER_PATH=./build/main.js
 
 # Expose port

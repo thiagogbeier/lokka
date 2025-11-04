@@ -75,7 +75,7 @@ class MCPClient extends EventEmitter {
 			stdio: ["pipe", "pipe", "pipe"],
 			env: {
 				...process.env,
-				AUTH_MODE: "token", // Use token-based authentication
+				// AUTH_MODE is inherited from parent process env
 			},
 		});
 

@@ -548,5 +548,24 @@ process.on("SIGINT", async () => {
 	process.exit(0);
 });
 
+// Handle uncaught errors
+process.on("uncaughtException", (error) => {
+	logger.error("Uncaught exception:", error);
+	process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+	logger.error(`Unhandled rejection at: ${promise} reason: ${reason}`);
+	process.exit(1);
+});
+
+// Log startup
+logger.info("Starting Lokka REST API Wrapper...");
+logger.info(`Node version: ${process.version}`);
+logger.info(`Working directory: ${process.cwd()}`);
+logger.info(`PORT: ${process.env.PORT}`);
+logger.info(`AUTH_MODE: ${process.env.AUTH_MODE}`);
+logger.info(`MCP_SERVER_PATH: ${process.env.MCP_SERVER_PATH}`);
+
 // Start the server
 startServer();

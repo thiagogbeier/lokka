@@ -137,3 +137,9 @@ dist
 src/.DS_Store
 .DS_Store
 website/static/img/Thumbs.db
+
+# TypeScript build output
+build/
+
+# Admin documentation (contains sensitive info)
+ADMIN-GUIDE.md

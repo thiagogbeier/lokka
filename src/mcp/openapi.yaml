@@ -1,0 +1,405 @@
+openapi: 3.0.0
+info:
+  title: Lokka Microsoft Graph API Wrapper
+  description: REST API wrapper for Lokka MCP server to enable Copilot Studio integration with Microsoft Graph APIs
+  version: 1.0.0
+  contact:
+    name: Lokka Support
+    url: https://github.com/thiagogbeier/lokka
+
+servers:
+  - url: https://lokka-mcp.jollygrass-0d6fb706.canadacentral.azurecontainerapps.io
+    description: Production server
+  - url: http://localhost:3000
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Microsoft Graph access token
+
+    TokenHeader:
+      type: apiKey
+      in: header
+      name: X-Access-Token
+      description: Microsoft Graph access token in custom header
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Error message
+      required:
+        - error
+        - message
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Group ID
+        displayName:
+          type: string
+          description: Group display name
+        createdDateTime:
+          type: string
+          format: date-time
+          description: When the group was created
+        groupTypes:
+          type: array
+          items:
+            type: string
+          description: Group types (e.g., Unified for Microsoft 365 groups)
+        mail:
+          type: string
+          nullable: true
+          description: Group email address
+        mailEnabled:
+          type: boolean
+          description: Whether the group is mail-enabled
+        securityEnabled:
+          type: boolean
+          description: Whether the group is security-enabled
+        description:
+          type: string
+          nullable: true
+          description: Group description
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        service:
+          type: string
+          example: Lokka REST API Wrapper
+        version:
+          type: string
+          example: 1.0.0
+        timestamp:
+          type: string
+          format: date-time
+
+    TokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+security:
+  - BearerAuth: []
+  - TokenHeader: []
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      description: Check if the API is running
+      operationId: healthCheck
+      security: []
+      tags:
+        - System
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /api/auth/token:
+    post:
+      summary: Set access token
+      description: Set the Microsoft Graph access token for authentication
+      operationId: setAccessToken
+      tags:
+        - Authentication
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                accessToken:
+                  type: string
+                  description: Microsoft Graph access token
+              required:
+                - accessToken
+      responses:
+        "200":
+          description: Token set successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "400":
+          description: Bad request - missing accessToken
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/graph/groups/recent:
+    get:
+      summary: List recent groups
+      description: Get all groups created in the past specified number of days (default 7 days)
+      operationId: listRecentGroups
+      tags:
+        - Groups
+      parameters:
+        - name: daysBack
+          in: query
+          description: Number of days to look back (default 7)
+          required: false
+          schema:
+            type: integer
+            default: 7
+            minimum: 1
+            maximum: 90
+      responses:
+        "200":
+          description: List of recent groups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  content:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          example: text
+                        text:
+                          type: string
+                          description: Formatted text response with group details
+        "401":
+          description: Unauthorized - missing or invalid access token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/graph/users:
+    get:
+      summary: List users
+      description: Get a list of users from Microsoft Graph
+      operationId: listUsers
+      tags:
+        - Users
+      parameters:
+        - name: $top
+          in: query
+          description: Number of items to return
+          required: false
+          schema:
+            type: integer
+            default: 999
+        - name: $select
+          in: query
+          description: Properties to select
+          required: false
+          schema:
+            type: string
+            example: id,displayName,mail,userPrincipalName
+        - name: $filter
+          in: query
+          description: Filter expression
+          required: false
+          schema:
+            type: string
+            example: accountEnabled eq true
+        - name: fetchAll
+          in: query
+          description: Fetch all pages
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: consistencyLevel
+          in: query
+          description: Consistency level for advanced queries
+          required: false
+          schema:
+            type: string
+            enum: [eventual]
+      responses:
+        "200":
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/graph/groups:
+    get:
+      summary: List groups
+      description: Get a list of groups from Microsoft Graph
+      operationId: listGroups
+      tags:
+        - Groups
+      parameters:
+        - name: $top
+          in: query
+          description: Number of items to return
+          required: false
+          schema:
+            type: integer
+        - name: $select
+          in: query
+          description: Properties to select
+          required: false
+          schema:
+            type: string
+            example: id,displayName,mail,groupTypes
+        - name: $filter
+          in: query
+          description: Filter expression
+          required: false
+          schema:
+            type: string
+        - name: $orderby
+          in: query
+          description: Order by expression
+          required: false
+          schema:
+            type: string
+            example: displayName
+        - name: fetchAll
+          in: query
+          description: Fetch all pages
+          required: false
+          schema:
+            type: boolean
+            default: false
+        - name: consistencyLevel
+          in: query
+          description: Consistency level for advanced queries
+          required: false
+          schema:
+            type: string
+            enum: [eventual]
+      responses:
+        "200":
+          description: List of groups
+          content:
+            application/json:
+              schema:
+                type: object
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/mcp/tools/call:
+    post:
+      summary: Call MCP tool
+      description: Call any Lokka MCP tool directly
+      operationId: callMCPTool
+      tags:
+        - MCP Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Name of the MCP tool to call
+                  example: Lokka-Microsoft
+                arguments:
+                  type: object
+                  description: Tool arguments
+                  example:
+                    apiType: graph
+                    path: /users
+                    method: get
+              required:
+                - name
+      responses:
+        "200":
+          description: Tool result
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+tags:
+  - name: System
+    description: System health and status
+  - name: Authentication
+    description: Authentication management
+  - name: Users
+    description: Microsoft Graph user operations
+  - name: Groups
+    description: Microsoft Graph group operations
+  - name: MCP Tools
+    description: Direct MCP tool invocation

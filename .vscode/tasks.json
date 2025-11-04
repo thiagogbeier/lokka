@@ -1,0 +1,175 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build TypeScript",
+			"type": "shell",
+			"command": "npm",
+			"args": ["run", "build"],
+			"options": {
+				"cwd": "${workspaceFolder}/src/mcp"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": ["$tsc"]
+		},
+		{
+			"label": "Start REST Wrapper",
+			"type": "shell",
+			"command": "node",
+			"args": ["build/rest-wrapper.js"],
+			"options": {
+				"cwd": "${workspaceFolder}/src/mcp"
+			},
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": {
+				"pattern": {
+					"regexp": "^(.*)$",
+					"file": 1,
+					"location": 2,
+					"message": 3
+				},
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^Starting MCP server",
+					"endsPattern": "^Lokka REST API Wrapper listening on port"
+				}
+			}
+		},
+		{
+			"label": "Build and Start",
+			"dependsOn": ["Build TypeScript", "Start REST Wrapper"],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker Build",
+			"type": "shell",
+			"command": "docker",
+			"args": [
+				"build",
+				"-t",
+				"lokka-rest-wrapper:latest",
+				"-f",
+				"Dockerfile",
+				"."
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/mcp"
+			},
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Docker Run Local",
+			"type": "shell",
+			"command": "docker",
+			"args": [
+				"run",
+				"--rm",
+				"-p",
+				"3000:3000",
+				"-e",
+				"AUTH_MODE=token",
+				"lokka-rest-wrapper:latest"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/mcp"
+			},
+			"isBackground": true,
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Azure: Build and Push Image",
+			"type": "shell",
+			"command": "az",
+			"args": [
+				"acr",
+				"build",
+				"--registry",
+				"lokkamcp",
+				"--image",
+				"lokka-rest-wrapper:${input:imageTag}",
+				"--file",
+				"Dockerfile",
+				"."
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/src/mcp"
+			},
+			"group": "build",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Azure: Deploy to Container App",
+			"type": "shell",
+			"command": "az",
+			"args": [
+				"containerapp",
+				"update",
+				"--name",
+				"lokka-mcp",
+				"--resource-group",
+				"${input:resourceGroup}",
+				"--image",
+				"lokkamcp.azurecr.io/lokka-rest-wrapper:${input:imageTag}",
+				"--set-env-vars",
+				"AUTH_MODE=token",
+				"PORT=3000",
+				"MCP_SERVER_PATH=./build/main.js"
+			],
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Azure: Full Deployment",
+			"dependsOn": [
+				"Build TypeScript",
+				"Docker Build",
+				"Azure: Build and Push Image",
+				"Azure: Deploy to Container App"
+			],
+			"dependsOrder": "sequence",
+			"problemMatcher": []
+		}
+	],
+	"inputs": [
+		{
+			"id": "imageTag",
+			"type": "promptString",
+			"description": "Docker image tag (e.g., v1.0.0 or latest)",
+			"default": "latest"
+		},
+		{
+			"id": "resourceGroup",
+			"type": "promptString",
+			"description": "Azure Resource Group name",
+			"default": "rg-lokka-mcp"
+		}
+	]
+}

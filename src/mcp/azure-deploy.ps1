@@ -58,14 +58,26 @@ try {
         --name $ContainerAppName `
         --resource-group $ResourceGroup `
         --image "$RegistryName.azurecr.io/lokka-rest-wrapper:$ImageTag" `
-        --target-port 3000 `
         --set-env-vars `
         AUTH_MODE=token `
         PORT=3000 `
         MCP_SERVER_PATH=./build/main.js
     
+    if ($LASTEXITCODE -ne 0) {
+        throw "Container App update failed"
+    }
+    
+    Write-Host "✓ Container App updated successfully!" -ForegroundColor Green
+    
+    # Update ingress to use port 3000
+    Write-Host "`nConfiguring ingress for port 3000..." -ForegroundColor Yellow
+    az containerapp ingress update `
+        --name $ContainerAppName `
+        --resource-group $ResourceGroup `
+        --target-port 3000
+    
     if ($LASTEXITCODE -eq 0) {
-        Write-Host "✓ Container App updated successfully!" -ForegroundColor Green
+        Write-Host "✓ Ingress configured successfully!" -ForegroundColor Green
         
         # Get the FQDN
         $fqdn = az containerapp show `

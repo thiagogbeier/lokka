@@ -190,6 +190,86 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/mcp/servers/list:
+    get:
+      summary: List MCP servers
+      description: Get information about available MCP servers including their status, capabilities, and endpoints
+      operationId: listMCPServers
+      security: []
+      tags:
+        - MCP Tools
+      responses:
+        "200":
+          description: Server list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  servers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          description: Server name
+                        version:
+                          type: string
+                          description: Server version
+                        description:
+                          type: string
+                          description: Server description
+                        status:
+                          type: string
+                          enum: [running, stopped, error]
+                          description: Server status
+                        capabilities:
+                          type: object
+                          properties:
+                            tools:
+                              type: array
+                              items:
+                                type: object
+                              description: Available tools
+                            internalTransport:
+                              type: string
+                              description: Internal transport protocol between REST wrapper and MCP server
+                            apiTransport:
+                              type: string
+                              description: External API transport protocol exposed to clients
+                        endpoints:
+                          type: object
+                          properties:
+                            baseUrl:
+                              type: string
+                              description: Base URL
+                            health:
+                              type: string
+                              description: Health check endpoint
+                            manifest:
+                              type: string
+                              description: Manifest endpoint
+                        authentication:
+                          type: object
+                          properties:
+                            mode:
+                              type: string
+                              description: Authentication mode
+                            requiresToken:
+                              type: boolean
+                              description: Whether authentication token is required
+                  timestamp:
+                    type: string
+                    format: date-time
+                    description: Response timestamp
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/auth/token:
     post:
       summary: Set access token

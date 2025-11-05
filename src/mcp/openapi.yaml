@@ -119,6 +119,77 @@ paths:
               schema:
                 $ref: "#/components/schemas/HealthResponse"
 
+  /manifest.json:
+    get:
+      summary: Get service manifest
+      description: Get the MCP server manifest including available tools and endpoints
+      operationId: getManifest
+      security: []
+      tags:
+        - System
+      responses:
+        "200":
+          description: Manifest retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: string
+                  version:
+                    type: string
+                  description:
+                    type: string
+                  author:
+                    type: string
+                  capabilities:
+                    type: object
+                  endpoints:
+                    type: object
+                  openapi:
+                    type: string
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /api/mcp/tools/list:
+    get:
+      summary: List available MCP tools
+      description: Get a list of all available MCP tools with their schemas
+      operationId: listMCPTools
+      security: []
+      tags:
+        - MCP Tools
+      responses:
+        "200":
+          description: Tools list retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        inputSchema:
+                          type: object
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/auth/token:
     post:
       summary: Set access token

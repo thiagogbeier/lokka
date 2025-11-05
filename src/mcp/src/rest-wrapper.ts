@@ -401,7 +401,8 @@ app.get("/api/mcp/servers/list", async (req: Request, res: Response) => {
 	try {
 		const tools = await mcpClient.listTools();
 		
-		// Get server information
+		// Get server information - MCP server uses stdio transport internally,
+		// but the REST wrapper exposes it via HTTP transport to external clients
 		const serverInfo = {
 			servers: [
 				{
@@ -411,7 +412,8 @@ app.get("/api/mcp/servers/list", async (req: Request, res: Response) => {
 					status: "running",
 					capabilities: {
 						tools: tools.tools || [],
-						transport: "stdio",
+						internalTransport: "stdio",
+						apiTransport: "http",
 					},
 					endpoints: {
 						baseUrl: process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`,

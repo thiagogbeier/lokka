@@ -232,9 +232,12 @@ paths:
                               items:
                                 type: object
                               description: Available tools
-                            transport:
+                            internalTransport:
                               type: string
-                              description: Transport protocol
+                              description: Internal transport protocol between REST wrapper and MCP server
+                            apiTransport:
+                              type: string
+                              description: External API transport protocol exposed to clients
                         endpoints:
                           type: object
                           properties:

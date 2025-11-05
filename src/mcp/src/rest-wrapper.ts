@@ -360,6 +360,9 @@ app.get("/manifest.json", async (req: Request, res: Response) => {
 					list: "/api/mcp/tools/list",
 					call: "/api/mcp/tools/call",
 				},
+				servers: {
+					list: "/api/mcp/servers/list",
+				},
 				graph: {
 					recent_groups: "/api/graph/groups/recent",
 					generic: "/api/graph/*",
@@ -388,6 +391,47 @@ app.get("/api/mcp/tools/list", async (req: Request, res: Response) => {
 		logger.error("Error listing MCP tools", error);
 		res.status(500).json({
 			error: "Failed to list MCP tools",
+			message: error.message,
+		});
+	}
+});
+
+// List MCP servers
+app.get("/api/mcp/servers/list", async (req: Request, res: Response) => {
+	try {
+		const tools = await mcpClient.listTools();
+		
+		// Get server information
+		const serverInfo = {
+			servers: [
+				{
+					name: "Lokka-Microsoft",
+					version: "0.4.0",
+					description: "MCP server for Microsoft Graph and Azure Resource Management APIs",
+					status: "running",
+					capabilities: {
+						tools: tools.tools || [],
+						transport: "stdio",
+					},
+					endpoints: {
+						baseUrl: process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
+						health: "/health",
+						manifest: "/manifest.json",
+					},
+					authentication: {
+						mode: process.env.AUTH_MODE || "client_token",
+						requiresToken: true,
+					},
+				},
+			],
+			timestamp: new Date().toISOString(),
+		};
+
+		res.json(serverInfo);
+	} catch (error: any) {
+		logger.error("Error listing MCP servers", error);
+		res.status(500).json({
+			error: "Failed to list MCP servers",
 			message: error.message,
 		});
 	}
@@ -613,6 +657,7 @@ async function startServer() {
 				`  - GET  /api/graph/groups/recent - List groups created in the past week`
 			);
 			logger.info(`  - ALL  /api/graph/* - Generic Graph API endpoint`);
+			logger.info(`  - GET  /api/mcp/servers/list - List MCP servers`);
 			logger.info(`  - POST /api/mcp/tools/call - Generic MCP tool call`);
 			logger.info(`  - POST /api/auth/token - Set access token`);
 		});

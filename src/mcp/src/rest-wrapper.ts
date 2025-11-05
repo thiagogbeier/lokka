@@ -519,10 +519,23 @@ app.all("/api/graph/*", async (req: Request, res: Response) => {
 			| "patch"
 			| "delete";
 
+		// Filter out internal parameters that shouldn't be sent to Graph API
+		const internalParams = new Set([
+			"fetchAll",
+			"graphApiVersion",
+			"consistencyLevel",
+		]);
+		const queryParams: Record<string, string> = {};
+		for (const [key, value] of Object.entries(req.query)) {
+			if (!internalParams.has(key) && typeof value === "string") {
+				queryParams[key] = value;
+			}
+		}
+
 		const graphRequest: GraphAPIRequest = {
 			path,
 			method,
-			queryParams: req.query as Record<string, string>,
+			queryParams,
 			graphApiVersion: (req.query.graphApiVersion as "v1.0" | "beta") || "beta",
 			fetchAll: req.query.fetchAll === "true",
 			consistencyLevel: req.query.consistencyLevel as string,

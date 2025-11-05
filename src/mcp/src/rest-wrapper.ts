@@ -179,6 +179,25 @@ class MCPClient extends EventEmitter {
 		return response.result;
 	}
 
+	async listTools(): Promise<any> {
+		if (!this.isInitialized) {
+			throw new Error("MCP client not initialized");
+		}
+
+		const response = await this.sendRequest({
+			jsonrpc: "2.0",
+			id: this.requestId++,
+			method: "tools/list",
+			params: {},
+		});
+
+		if (response.error) {
+			throw new Error(response.error.message);
+		}
+
+		return response.result;
+	}
+
 	private handleOutput(data: string): void {
 		this.messageBuffer += data;
 
@@ -317,6 +336,61 @@ app.get("/health", (req: Request, res: Response) => {
 		version: "1.0.0",
 		timestamp: new Date().toISOString(),
 	});
+});
+
+// Manifest endpoint - MCP server capabilities
+app.get("/manifest.json", async (req: Request, res: Response) => {
+	try {
+		const tools = await mcpClient.listTools();
+
+		res.json({
+			name: "Lokka Microsoft Graph MCP Server",
+			version: "0.4.0",
+			description:
+				"REST API wrapper for Lokka MCP server - Microsoft Graph and Entra ID integration",
+			author: "Thiago Beier",
+			capabilities: {
+				tools: tools.tools || [],
+				transport: "http",
+			},
+			endpoints: {
+				health: "/health",
+				manifest: "/manifest.json",
+				tools: {
+					list: "/api/mcp/tools/list",
+					call: "/api/mcp/tools/call",
+				},
+				graph: {
+					recent_groups: "/api/graph/groups/recent",
+					generic: "/api/graph/*",
+				},
+				auth: {
+					set_token: "/api/auth/token",
+				},
+			},
+			openapi: "/openapi.yaml",
+		});
+	} catch (error: any) {
+		logger.error("Error generating manifest", error);
+		res.status(500).json({
+			error: "Failed to generate manifest",
+			message: error.message,
+		});
+	}
+});
+
+// List available MCP tools
+app.get("/api/mcp/tools/list", async (req: Request, res: Response) => {
+	try {
+		const tools = await mcpClient.listTools();
+		res.json(tools);
+	} catch (error: any) {
+		logger.error("Error listing MCP tools", error);
+		res.status(500).json({
+			error: "Failed to list MCP tools",
+			message: error.message,
+		});
+	}
 });
 
 // Set access token endpoint
